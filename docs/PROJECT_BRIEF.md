@@ -43,11 +43,14 @@ Our platform fixes each step: verified vendors, one all-inclusive price before p
 These are the features that set us apart. Every batch should respect them.
 
 ### 3.1 Two ways to order
+
 - **Catalog order**: buy from products listed by verified vendors on the platform.
 - **Link order ("Buy it for me")**: paste a product link from any online store (Jumia, Konga, AliExpress, Amazon, 1688 and others). The system saves the link and fetches only basic public preview data (title, image) where available. An admin then prepares a quote manually. Do not build scrapers that break store terms of service. Manual quoting is fine for the first version.
 
 ### 3.2 Landed-cost quote
+
 Before payment, the buyer sees one final price in their own currency, broken into lines:
+
 - Item price
 - Service fee
 - International freight (if cross-border)
@@ -58,21 +61,27 @@ Before payment, the buyer sees one final price in their own currency, broken int
 Each quote has an expiry (default 48 hours) because exchange rates and freight prices move. All fee rates, duty estimates and FX overrides are admin-configurable in the database. Never hardcode rates.
 
 ### 3.3 Protected payment (escrow ledger)
+
 The buyer's payment is held on the platform. The vendor is paid only after the recipient confirms delivery. We record this in an internal ledger (held, released, refunded). The ledger must be append-only and auditable. Real money moves through payment providers. The ledger tracks the state.
 
 ### 3.4 Pre-shipment inspection proof
+
 For electronics, the vendor or our agent uploads photos or a short video before shipping: item powered on, serial number or IMEI visible, packaging sealed. The buyer can view this proof and approve or raise a dispute before the item ships. This is our main trust feature.
 
 ### 3.5 Payer and recipient are separate
+
 The buyer abroad enters the recipient's name, phone and address in Nigeria. The recipient gets a delivery code (OTP) by SMS or email. The rider or partner collects this code at the door. Entering the code confirms delivery and triggers vendor payout.
 
 ### 3.6 Partner-agnostic logistics
+
 Logistics partners are plugged in through an adapter interface. Version one uses a **manual adapter**: admin updates shipment status and tracking numbers by hand. Later, we add API adapters for partners (for example GIG Logistics, DHL, or China-to-Nigeria freight forwarders) without changing order logic.
 
 ### 3.7 One tracking page
+
 Buyer and recipient see one timeline: Paid, Purchased, Inspected, Shipped, In Transit, Arrived Nigeria, Customs Cleared, Out for Delivery, Delivered. The recipient can open a public tracking link without creating an account.
 
 ### 3.8 Consolidation (later batch, design for it now)
+
 Buyers can group several orders into one shipment to cut freight cost. The data model should allow many orders to belong to one shipment from the start.
 
 ---
@@ -82,6 +91,7 @@ Buyers can group several orders into one shipment to cut freight cost. The data 
 A corridor is an origin country plus a destination country, each with its own fees, freight rates and delivery times. Store corridors in the database.
 
 Launch corridors:
+
 1. **China to Nigeria** (electronics focus)
 2. **Nigeria to Nigeria, paid from abroad** (diaspora buyer pays for local goods delivered to family)
 
@@ -110,12 +120,12 @@ Keep it light and cheap. One codebase to start.
 
 One app, role-based access:
 
-| Role | Can do |
-|------|--------|
-| Buyer | Browse, request link quotes, pay, track, confirm or dispute |
-| Recipient | View tracking via link, provide delivery code |
-| Vendor | Manage listings, accept orders, upload inspection proof, see payouts |
-| Admin | Approve vendors, prepare quotes, set fees and FX, update shipments, resolve disputes, release or refund payments |
+| Role      | Can do                                                                                                           |
+| --------- | ---------------------------------------------------------------------------------------------------------------- |
+| Buyer     | Browse, request link quotes, pay, track, confirm or dispute                                                      |
+| Recipient | View tracking via link, provide delivery code                                                                    |
+| Vendor    | Manage listings, accept orders, upload inspection proof, see payouts                                             |
+| Admin     | Approve vendors, prepare quotes, set fees and FX, update shipments, resolve disputes, release or refund payments |
 
 ---
 

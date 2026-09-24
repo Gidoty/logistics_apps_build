@@ -16,8 +16,14 @@ export default defineConfig({
       ? { executablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH }
       : undefined,
   },
-  // Mobile first: most buyers and recipients use phones.
-  projects: [{ name: "mobile-chrome", use: { ...devices["Pixel 7"] } }],
+  // Mobile first: most buyers and recipients use phones. 375px is the
+  // narrowest common phone width (iPhone SE, many Android phones).
+  projects: [
+    {
+      name: "mobile-375",
+      use: { ...devices["Pixel 7"], viewport: { width: 375, height: 667 } },
+    },
+  ],
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
