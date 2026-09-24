@@ -1,0 +1,3 @@
+-- Local development seed. Runs after migrations on `supabase db reset`.
+-- Reference data (currencies, countries, corridors) lives in migrations so it
+-- also reaches production. Put local-only demo data here.
