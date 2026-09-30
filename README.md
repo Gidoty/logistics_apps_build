@@ -21,7 +21,8 @@ Next.js 16 (App Router, TypeScript strict), Tailwind CSS v4 with shadcn/ui, Supa
    npx supabase db push --include-seed
    ```
    The seed must run before the first sign-up (new profiles default to NGN).
-   Alternative without the CLI: paste the two files in `supabase/migrations/` (in order), then `supabase/seed.sql`, into the SQL editor.
+   Alternative without the CLI: paste the files in `supabase/migrations/` (in filename order), then `supabase/seed.sql`, into the SQL editor.
+   The migrations also create the public `product-images` storage bucket and its access rules.
 4. In the dashboard, Auth > URL Configuration: set Site URL to `http://localhost:3000` (or your deployed URL) and add `http://localhost:3000/auth/callback` to Redirect URLs.
 5. Run: `npm run dev` and open http://localhost:3000.
 

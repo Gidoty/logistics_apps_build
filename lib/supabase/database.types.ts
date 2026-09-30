@@ -1215,7 +1215,10 @@ export type Database = {
           created_at: string;
           id: string;
           owner_id: string;
+          payout_change_requested_at: string | null;
+          payout_change_token: string | null;
           payout_details_json: Json;
+          pending_payout_details_json: Json | null;
           status: Database["public"]["Enums"]["vendor_status"];
           updated_at: string;
           verification_notes: string | null;
@@ -1227,7 +1230,10 @@ export type Database = {
           created_at?: string;
           id?: string;
           owner_id: string;
+          payout_change_requested_at?: string | null;
+          payout_change_token?: string | null;
           payout_details_json?: Json;
+          pending_payout_details_json?: Json | null;
           status?: Database["public"]["Enums"]["vendor_status"];
           updated_at?: string;
           verification_notes?: string | null;
@@ -1239,7 +1245,10 @@ export type Database = {
           created_at?: string;
           id?: string;
           owner_id?: string;
+          payout_change_requested_at?: string | null;
+          payout_change_token?: string | null;
           payout_details_json?: Json;
+          pending_payout_details_json?: Json | null;
           status?: Database["public"]["Enums"]["vendor_status"];
           updated_at?: string;
           verification_notes?: string | null;
@@ -1273,6 +1282,13 @@ export type Database = {
       };
     };
     Functions: {
+      approve_payout_change: {
+        Args: {
+          _vendor_id: string;
+          _token: string;
+        };
+        Returns: undefined;
+      };
       approve_vendor: {
         Args: {
           _vendor_id: string;
@@ -1300,6 +1316,19 @@ export type Database = {
       is_privileged_session: {
         Args: never;
         Returns: boolean;
+      };
+      reject_payout_change: {
+        Args: {
+          _vendor_id: string;
+          _note?: string;
+        };
+        Returns: undefined;
+      };
+      request_payout_change: {
+        Args: {
+          _details: Json;
+        };
+        Returns: string;
       };
       suspend_vendor: {
         Args: {
