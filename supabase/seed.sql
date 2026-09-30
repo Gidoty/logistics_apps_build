@@ -69,3 +69,31 @@ join public.corridors c
 where not exists (
   select 1 from public.fee_rules f where f.corridor_id = c.id and f.fee_type = r.fee_type
 );
+
+-- Categories. Electronics and General are groups; listings go in the leaf
+-- categories. The last four are prohibited: they exist so they can be refused
+-- and are never shown to shoppers or vendors.
+insert into public.categories (slug, name, parent_slug, active, prohibited, sort_order) values
+  ('electronics',      'Electronics',      null,          true,  false, 10),
+  ('general',          'General',          null,          true,  false, 20),
+  ('phones',           'Phones',           'electronics', true,  false, 11),
+  ('laptops',          'Laptops',          'electronics', true,  false, 12),
+  ('tablets',          'Tablets',          'electronics', true,  false, 13),
+  ('accessories',      'Accessories',      'electronics', true,  false, 14),
+  ('audio',            'Audio',            'electronics', true,  false, 15),
+  ('cameras',          'Cameras',          'electronics', true,  false, 16),
+  ('gaming',           'Gaming',           'electronics', true,  false, 17),
+  ('smart_home',       'Smart home',       'electronics', true,  false, 18),
+  ('solar_power',      'Solar and power',  'electronics', true,  false, 19),
+  ('small_appliances', 'Small appliances', 'electronics', true,  false, 20),
+  ('fashion',          'Fashion',          'general',     true,  false, 21),
+  ('beauty',           'Beauty',           'general',     true,  false, 22),
+  ('home',             'Home',             'general',     true,  false, 23),
+  ('baby',             'Baby',             'general',     true,  false, 24),
+  ('books',            'Books',            'general',     true,  false, 25),
+  ('other',            'Other',            'general',     true,  false, 26),
+  ('weapons',          'Weapons',          null,          false, true,  90),
+  ('drugs',            'Drugs',            null,          false, true,  91),
+  ('counterfeit',      'Counterfeit goods', null,         false, true,  92),
+  ('hazardous',        'Hazardous goods',  null,          false, true,  93)
+on conflict (slug) do nothing;

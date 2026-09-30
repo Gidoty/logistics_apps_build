@@ -7,6 +7,8 @@ import { expect, test, type Page } from "@playwright/test";
  *   E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD  an account promoted with make-admin
  * They are skipped when those variables are not set.
  */
+// Real accounts need real Supabase, so these run only against E2E_BASE_URL.
+const realApp = Boolean(process.env.E2E_BASE_URL);
 const buyer = { email: process.env.E2E_BUYER_EMAIL, password: process.env.E2E_BUYER_PASSWORD };
 const admin = { email: process.env.E2E_ADMIN_EMAIL, password: process.env.E2E_ADMIN_PASSWORD };
 
@@ -19,7 +21,10 @@ async function logIn(page: Page, email: string, password: string) {
 }
 
 test.describe("buyer", () => {
-  test.skip(!buyer.email || !buyer.password, "Set E2E_BUYER_EMAIL and E2E_BUYER_PASSWORD");
+  test.skip(
+    !realApp || !buyer.email || !buyer.password,
+    "Set E2E_BASE_URL, E2E_BUYER_EMAIL and E2E_BUYER_PASSWORD",
+  );
 
   test("can log in, is blocked from /admin and /vendor, and can log out", async ({ page }) => {
     await logIn(page, buyer.email!, buyer.password!);
@@ -39,7 +44,10 @@ test.describe("buyer", () => {
 });
 
 test.describe("admin", () => {
-  test.skip(!admin.email || !admin.password, "Set E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD");
+  test.skip(
+    !realApp || !admin.email || !admin.password,
+    "Set E2E_BASE_URL, E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD",
+  );
 
   test("can open /admin", async ({ page }) => {
     await logIn(page, admin.email!, admin.password!);

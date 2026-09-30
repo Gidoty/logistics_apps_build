@@ -47,6 +47,50 @@ export type Database = {
         };
         Relationships: [];
       };
+      categories: {
+        Row: {
+          active: boolean;
+          created_at: string;
+          id: string;
+          name: string;
+          parent_slug: string | null;
+          prohibited: boolean;
+          slug: string;
+          sort_order: number;
+          updated_at: string;
+        };
+        Insert: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          name: string;
+          parent_slug?: string | null;
+          prohibited?: boolean;
+          slug: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          id?: string;
+          name?: string;
+          parent_slug?: string | null;
+          prohibited?: boolean;
+          slug?: string;
+          sort_order?: number;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "categories_parent_slug_fkey";
+            columns: ["parent_slug"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["slug"];
+          },
+        ];
+      };
       corridors: {
         Row: {
           active: boolean;
@@ -775,51 +819,89 @@ export type Database = {
           active: boolean;
           brand: string | null;
           category: string;
-          condition: string;
+          condition: Database["public"]["Enums"]["product_condition"];
+          condition_notes: string | null;
+          corridor_id: string;
           created_at: string;
           currency: string;
           description: string;
+          flagged_at: string | null;
+          flagged_reason: string | null;
           id: string;
           price_minor: number;
+          requires_special_handling: boolean;
+          search_vector: unknown | null;
+          specs: Json;
           stock: number;
           title: string;
           updated_at: string;
           vendor_id: string;
+          warranty_months: number;
           weight_grams: number | null;
         };
         Insert: {
           active?: boolean;
           brand?: string | null;
           category: string;
-          condition?: string;
+          condition?: Database["public"]["Enums"]["product_condition"];
+          condition_notes?: string | null;
+          corridor_id: string;
           created_at?: string;
           currency: string;
           description?: string;
+          flagged_at?: string | null;
+          flagged_reason?: string | null;
           id?: string;
           price_minor: number;
+          requires_special_handling?: boolean;
+          search_vector?: never;
+          specs?: Json;
           stock?: number;
           title: string;
           updated_at?: string;
           vendor_id: string;
+          warranty_months?: number;
           weight_grams?: number | null;
         };
         Update: {
           active?: boolean;
           brand?: string | null;
           category?: string;
-          condition?: string;
+          condition?: Database["public"]["Enums"]["product_condition"];
+          condition_notes?: string | null;
+          corridor_id?: string;
           created_at?: string;
           currency?: string;
           description?: string;
+          flagged_at?: string | null;
+          flagged_reason?: string | null;
           id?: string;
           price_minor?: number;
+          requires_special_handling?: boolean;
+          search_vector?: never;
+          specs?: Json;
           stock?: number;
           title?: string;
           updated_at?: string;
           vendor_id?: string;
+          warranty_months?: number;
           weight_grams?: number | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "products_category_fkey";
+            columns: ["category"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["slug"];
+          },
+          {
+            foreignKeyName: "products_corridor_id_fkey";
+            columns: ["corridor_id"];
+            isOneToOne: false;
+            referencedRelation: "corridors";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "products_currency_fkey";
             columns: ["currency"];
@@ -893,6 +975,27 @@ export type Database = {
             referencedColumns: ["code"];
           },
         ];
+      };
+      prohibited_terms: {
+        Row: {
+          created_at: string;
+          id: string;
+          term: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          term: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          term?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
       };
       quote_lines: {
         Row: {
@@ -1210,45 +1313,57 @@ export type Database = {
       vendors: {
         Row: {
           business_name: string;
+          business_reg_number: string | null;
+          categories: string[];
           city: string;
           country_code: string;
           created_at: string;
           id: string;
+          id_document_path: string | null;
           owner_id: string;
           payout_change_requested_at: string | null;
           payout_change_token: string | null;
           payout_details_json: Json;
           pending_payout_details_json: Json | null;
+          phone: string | null;
           status: Database["public"]["Enums"]["vendor_status"];
           updated_at: string;
           verification_notes: string | null;
         };
         Insert: {
           business_name: string;
+          business_reg_number?: string | null;
+          categories?: string[];
           city: string;
           country_code: string;
           created_at?: string;
           id?: string;
+          id_document_path?: string | null;
           owner_id: string;
           payout_change_requested_at?: string | null;
           payout_change_token?: string | null;
           payout_details_json?: Json;
           pending_payout_details_json?: Json | null;
+          phone?: string | null;
           status?: Database["public"]["Enums"]["vendor_status"];
           updated_at?: string;
           verification_notes?: string | null;
         };
         Update: {
           business_name?: string;
+          business_reg_number?: string | null;
+          categories?: string[];
           city?: string;
           country_code?: string;
           created_at?: string;
           id?: string;
+          id_document_path?: string | null;
           owner_id?: string;
           payout_change_requested_at?: string | null;
           payout_change_token?: string | null;
           payout_details_json?: Json;
           pending_payout_details_json?: Json | null;
+          phone?: string | null;
           status?: Database["public"]["Enums"]["vendor_status"];
           updated_at?: string;
           verification_notes?: string | null;
@@ -1272,10 +1387,21 @@ export type Database = {
       };
     };
     Views: {
+      shop_brands: {
+        Row: {
+          brand: string | null;
+          brand_key: string | null;
+          product_count: number | null;
+        };
+        Relationships: [];
+      };
       vendor_directory: {
         Row: {
           business_name: string | null;
+          categories: string[] | null;
+          city: string | null;
           country_code: string | null;
+          created_at: string | null;
           id: string | null;
         };
         Relationships: [];
@@ -1294,6 +1420,25 @@ export type Database = {
           _vendor_id: string;
         };
         Returns: undefined;
+      };
+      category_is_assignable: {
+        Args: {
+          _slug: string;
+        };
+        Returns: boolean;
+      };
+      clear_product_flag: {
+        Args: {
+          _product_id: string;
+        };
+        Returns: undefined;
+      };
+      corridor_matches_vendor: {
+        Args: {
+          _corridor_id: string;
+          _vendor_id: string;
+        };
+        Returns: boolean;
       };
       current_user_role: {
         Args: never;
@@ -1317,10 +1462,41 @@ export type Database = {
         Args: never;
         Returns: boolean;
       };
+      log_vendor_document_view: {
+        Args: {
+          _vendor_id: string;
+        };
+        Returns: undefined;
+      };
+      matched_prohibited_terms: {
+        Args: {
+          _text: string;
+        };
+        Returns: string[];
+      };
+      product_image_count: {
+        Args: {
+          _product_id: string;
+        };
+        Returns: number;
+      };
+      product_vendor_id: {
+        Args: {
+          _product_id: string;
+        };
+        Returns: string;
+      };
       reject_payout_change: {
         Args: {
           _vendor_id: string;
           _note?: string;
+        };
+        Returns: undefined;
+      };
+      reject_vendor: {
+        Args: {
+          _vendor_id: string;
+          _reason: string;
         };
         Returns: undefined;
       };
@@ -1352,8 +1528,9 @@ export type Database = {
       ledger_entry_type: "payment_received" | "held" | "released_to_vendor" | "refunded_to_buyer" | "platform_fee" | "adjustment";
       order_status: "draft" | "quote_requested" | "quoted" | "quote_expired" | "awaiting_payment" | "paid" | "purchased" | "inspection_pending" | "inspection_approved" | "shipped" | "in_transit" | "arrived_destination" | "customs_cleared" | "out_for_delivery" | "delivered" | "disputed" | "refunded" | "cancelled";
       order_type: "catalog" | "link";
+      product_condition: "new" | "open_box" | "refurbished" | "used";
       user_role: "buyer" | "vendor" | "admin";
-      vendor_status: "pending" | "approved" | "suspended";
+      vendor_status: "pending" | "approved" | "suspended" | "rejected";
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -1376,8 +1553,9 @@ export const Constants = {
       ledger_entry_type: ["payment_received", "held", "released_to_vendor", "refunded_to_buyer", "platform_fee", "adjustment"],
       order_status: ["draft", "quote_requested", "quoted", "quote_expired", "awaiting_payment", "paid", "purchased", "inspection_pending", "inspection_approved", "shipped", "in_transit", "arrived_destination", "customs_cleared", "out_for_delivery", "delivered", "disputed", "refunded", "cancelled"],
       order_type: ["catalog", "link"],
+      product_condition: ["new", "open_box", "refurbished", "used"],
       user_role: ["buyer", "vendor", "admin"],
-      vendor_status: ["pending", "approved", "suspended"],
+      vendor_status: ["pending", "approved", "suspended", "rejected"],
     },
   },
 } as const;

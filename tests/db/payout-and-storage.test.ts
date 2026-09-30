@@ -4,7 +4,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   PRODUCT_IMAGE_BUCKET,
-  PRODUCT_IMAGE_MAX_BYTES,
+  PRODUCT_IMAGE_MAX_STORED_BYTES,
   PRODUCT_IMAGE_MAX_PER_PRODUCT,
   PRODUCT_IMAGE_MIME_TYPES,
 } from "@/lib/storage/product-images";
@@ -24,6 +24,7 @@ describe.skipIf(!DATABASE_URL)("database: payout review and product images", () 
   let vendorId: string;
   let otherVendorId: string;
   let suspendedVendorId: string;
+  let corridorId: string;
   let productId: string;
   let otherProductId: string;
 
@@ -51,11 +52,16 @@ describe.skipIf(!DATABASE_URL)("database: payout review and product images", () 
     await h.setRoleAsServer(vendorOwner.id, "vendor");
     await h.setRoleAsServer(otherVendorOwner.id, "vendor");
 
+    corridorId = (
+      await h.query(
+        "select id from public.corridors where origin_country = 'CN' and destination_country = 'NG'",
+      )
+    ).rows[0].id;
     const products = await h.query(
-      `insert into public.products (vendor_id, title, category, price_minor, currency, active)
-       values ($1, 'Phone A', 'phones', 15000000, 'NGN', true), ($2, 'Phone B', 'phones', 15000000, 'NGN', true)
+      `insert into public.products (vendor_id, title, category, price_minor, currency, active, corridor_id)
+       values ($1, 'Phone A', 'phones', 15000000, 'NGN', true, $3), ($2, 'Phone B', 'phones', 15000000, 'NGN', true, $3)
        returning id, vendor_id`,
-      [vendorId, otherVendorId],
+      [vendorId, otherVendorId, corridorId],
     );
     productId = products.rows.find((r) => r.vendor_id === vendorId).id;
     otherProductId = products.rows.find((r) => r.vendor_id === otherVendorId).id;
@@ -118,8 +124,8 @@ describe.skipIf(!DATABASE_URL)("database: payout review and product images", () 
       await h.scenario(async () => {
         await h.actAs(buyer);
         const { rows } = await h.query(
-          `insert into public.vendors (owner_id, business_name, country_code, city, payout_details_json)
-           values ($1, 'Buyer Shop', 'NG', 'Lagos', $2) returning payout_details_json`,
+          `insert into public.vendors (owner_id, business_name, country_code, city, payout_details_json, phone, categories, id_document_path)
+           values ($1, 'Buyer Shop', 'NG', 'Lagos', $2, '+2348031234567', array['phones'], $1::uuid::text || '/doc.pdf') returning payout_details_json`,
           [buyer.id, JSON.stringify(LIVE)],
         );
         expect(rows[0].payout_details_json).toEqual(LIVE);
@@ -317,7 +323,7 @@ describe.skipIf(!DATABASE_URL)("database: payout review and product images", () 
       );
       expect(rows).toHaveLength(1);
       expect(rows[0].public).toBe(true);
-      expect(Number(rows[0].file_size_limit)).toBe(PRODUCT_IMAGE_MAX_BYTES);
+      expect(Number(rows[0].file_size_limit)).toBe(PRODUCT_IMAGE_MAX_STORED_BYTES);
       expect([...rows[0].allowed_mime_types].sort()).toEqual([...PRODUCT_IMAGE_MIME_TYPES].sort());
     });
 
@@ -354,10 +360,20 @@ describe.skipIf(!DATABASE_URL)("database: payout review and product images", () 
       });
     });
 
-    it("lets an admin upload into any folder", async () => {
+    it("lets an admin delete any product photo but not upload", async () => {
       await h.scenario(async () => {
+        await h.asServer();
+        await insertObject(`${otherVendorId}/${otherProductId}/theirs.png`);
         await h.actAs(admin);
-        expect((await insertObject(`${otherVendorId}/${otherProductId}/admin.png`)).rowCount).toBe(1);
+        await h.expectError(
+          "insert into storage.objects (bucket_id, name) values ($1, $2)",
+          [PRODUCT_IMAGE_BUCKET, `${otherVendorId}/${otherProductId}/admin.png`],
+          RLS_DENIED,
+        );
+        const removed = await h.query("delete from storage.objects where name = $1", [
+          `${otherVendorId}/${otherProductId}/theirs.png`,
+        ]);
+        expect(removed.rowCount).toBe(1);
       });
     });
 
@@ -462,7 +478,7 @@ describe.skipIf(!DATABASE_URL)("database: payout review and product images", () 
         await h.expectError(
           "insert into public.product_images (product_id, storage_path) values ($1, $2)",
           [productId, `${vendorId}/${productId}/one-too-many.jpg`],
-          /at most 10 images/,
+          /at most 6 images/,
         );
       });
     });

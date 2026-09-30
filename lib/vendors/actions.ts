@@ -1,98 +1,139 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { requireAdmin, requireUser } from "@/lib/auth/session";
-import { formError, fromZodError, readText, type FormState } from "@/lib/form-state";
+import { userFacingDbError } from "@/lib/db-errors";
+import { fieldErrorsFromIssues } from "@/lib/catalog/schemas";
+import { formError, formSuccess, fromZodError, readText, type FormState } from "@/lib/form-state";
 import { listActiveCountries } from "@/lib/reference/queries";
 import { createClient } from "@/lib/supabase/server";
+import { loadProductFormOptions } from "@/lib/catalog/context";
+import { getOwnVendor } from "./queries";
 import {
+  createVendorApplicationSchema,
   payoutDetailsSchema,
   payoutRequestTokenSchema,
   rejectionNoteSchema,
-  suspensionNoteSchema,
-  vendorApplicationSchema,
   vendorIdSchema,
+  vendorReviewSchema,
 } from "./schemas";
 
-const UNIQUE_VIOLATION = "23505";
+export type ApplicationResult =
+  { ok: true } | { ok: false; message: string; fieldErrors?: Record<string, string[]> };
 
 /**
- * "Become a vendor": creates a pending vendor record for the signed-in user.
- * The role stays buyer until an admin approves (approveVendor).
+ * "Become a vendor": creates a pending application for the signed-in user, or,
+ * after a rejection, updates the same record and sends it back for review.
+ * The ID document was already uploaded by the browser into the user's own
+ * folder; the database checks the path again. The role stays buyer until an
+ * admin approves.
  */
-export async function applyToBecomeVendor(_prev: FormState, formData: FormData): Promise<FormState> {
+export async function submitVendorApplication(input: unknown): Promise<ApplicationResult> {
   const user = await requireUser("/account/become-vendor");
-  if (user.role === "admin") return formError("Admin accounts cannot apply to be vendors.");
-
-  const parsed = vendorApplicationSchema.safeParse({
-    businessName: readText(formData, "businessName"),
-    countryCode: readText(formData, "countryCode"),
-    city: readText(formData, "city"),
-  });
-  if (!parsed.success) return fromZodError(parsed.error);
-
-  const countries = await listActiveCountries();
-  if (!countries.some((country) => country.code === parsed.data.countryCode)) {
-    return { status: "error", fieldErrors: { countryCode: ["Choose a country from the list."] } };
-  }
+  if (user.role === "admin") return { ok: false, message: "Admin accounts cannot apply to be vendors." };
 
   const supabase = await createClient();
-  // Status is not sent: the database sets it to pending.
-  const { error } = await supabase.from("vendors").insert({
-    owner_id: user.id,
-    business_name: parsed.data.businessName,
-    country_code: parsed.data.countryCode,
-    city: parsed.data.city,
-  });
+  const [countries, options, existing] = await Promise.all([
+    listActiveCountries(),
+    // Any country works for the category list, which does not depend on it.
+    loadProductFormOptions(supabase, "NG"),
+    getOwnVendor(user.id),
+  ]);
 
-  if (error) {
-    if (error.code === UNIQUE_VIOLATION) return formError("You have already applied.");
-    return formError("We could not send your application. Please try again.");
+  const parsed = createVendorApplicationSchema({
+    countries: countries.map((country) => country.code),
+    categories: options.context.categories,
+    userId: user.id,
+  }).safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Please fix the highlighted fields.",
+      fieldErrors: fieldErrorsFromIssues(parsed.error.issues),
+    };
+  }
+  const data = parsed.data;
+  const fields = {
+    business_name: data.businessName,
+    country_code: data.countryCode,
+    city: data.city,
+    phone: data.phone,
+    business_reg_number: data.businessRegNumber,
+    categories: data.categories,
+    id_document_path: data.documentPath,
+  };
+
+  if (!existing) {
+    // Status is not sent: the database sets it to pending.
+    const { error } = await supabase.from("vendors").insert({ owner_id: user.id, ...fields });
+    if (error) {
+      if (error.code === "23505") return { ok: false, message: "You have already applied." };
+      return {
+        ok: false,
+        message: userFacingDbError(error, "We could not send your application. Please try again."),
+      };
+    }
+  } else if (existing.status === "rejected") {
+    const { error } = await supabase
+      .from("vendors")
+      .update({ ...fields, status: "pending" })
+      .eq("id", existing.id);
+    if (error) {
+      return {
+        ok: false,
+        message: userFacingDbError(error, "We could not send your application. Please try again."),
+      };
+    }
+  } else {
+    return { ok: false, message: "You already have a vendor application." };
   }
 
   revalidatePath("/account");
-  redirect("/account?applied=1");
+  revalidatePath("/admin/vendors");
+  return { ok: true };
+}
+
+/**
+ * Admin: approve, reject or suspend a vendor. Approval sets the vendor to
+ * approved and the owner's role to vendor in one database transaction.
+ * Reject and suspend need a reason, which the vendor sees. Every action is
+ * written to audit_log by the database.
+ */
+export async function reviewVendor(_prev: FormState, formData: FormData): Promise<FormState> {
+  await requireAdmin("/admin/vendors");
+  const parsed = vendorReviewSchema.safeParse({
+    vendorId: readText(formData, "vendorId"),
+    intent: readText(formData, "intent"),
+    reason: readText(formData, "reason"),
+  });
+  if (!parsed.success) return fromZodError(parsed.error);
+
+  const { vendorId, intent, reason } = parsed.data;
+  const supabase = await createClient();
+
+  const { error } =
+    intent === "approve"
+      ? await supabase.rpc("approve_vendor", { _vendor_id: vendorId })
+      : intent === "reject"
+        ? await supabase.rpc("reject_vendor", { _vendor_id: vendorId, _reason: reason })
+        : await supabase.rpc("suspend_vendor", { _vendor_id: vendorId, _note: reason });
+  if (error)
+    return formError(userFacingDbError(error, "That action could not be completed. Please try again."));
+
+  revalidatePath("/admin/vendors");
+  revalidatePath(`/admin/vendors/${vendorId}`);
+  // Suspending or reinstating changes what the shop shows.
+  revalidatePath("/shop");
+  return formSuccess(
+    intent === "approve"
+      ? "Vendor approved."
+      : intent === "reject"
+        ? "Application rejected."
+        : "Vendor suspended.",
+  );
 }
 
 export type AdminActionResult = { ok: true } | { ok: false; error: string };
-
-/**
- * Admin: approve a vendor. Sets the vendor to approved and the owner's role
- * to vendor in one database transaction (approve_vendor). Logged to audit_log.
- * The approval screen arrives in Batch 8.
- */
-export async function approveVendor(vendorId: string): Promise<AdminActionResult> {
-  await requireAdmin("/admin");
-  const id = vendorIdSchema.safeParse(vendorId);
-  if (!id.success) return { ok: false, error: "Invalid vendor." };
-
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("approve_vendor", { _vendor_id: id.data });
-  if (error) return { ok: false, error: error.message };
-
-  revalidatePath("/admin");
-  return { ok: true };
-}
-
-/** Admin: suspend a vendor. The owner goes back to the buyer role. */
-export async function suspendVendor(vendorId: string, note: string): Promise<AdminActionResult> {
-  await requireAdmin("/admin");
-  const id = vendorIdSchema.safeParse(vendorId);
-  const parsedNote = suspensionNoteSchema.safeParse(note);
-  if (!id.success) return { ok: false, error: "Invalid vendor." };
-  if (!parsedNote.success) return { ok: false, error: "Note is too long." };
-
-  const supabase = await createClient();
-  const { error } = await supabase.rpc("suspend_vendor", {
-    _vendor_id: id.data,
-    ...(parsedNote.data ? { _note: parsedNote.data } : {}),
-  });
-  if (error) return { ok: false, error: error.message };
-
-  revalidatePath("/admin");
-  return { ok: true };
-}
 
 export type PayoutRequestResult = { ok: true; requestToken: string } | { ok: false; error: string };
 

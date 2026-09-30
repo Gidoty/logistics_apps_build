@@ -4,40 +4,101 @@ import {
   payoutRequestTokenSchema,
   rejectionNoteSchema,
   suspensionNoteSchema,
-  vendorApplicationSchema,
+  createVendorApplicationSchema,
+  vendorReviewSchema,
   vendorIdSchema,
 } from "@/lib/vendors/schemas";
 
-describe("vendorApplicationSchema", () => {
-  it("trims and normalizes input", () => {
+const USER_ID = "6f1c2c8e-8a4b-4f7e-9d3a-2b1e5c7d9f00";
+const OTHER_USER_ID = "0b9d1a52-3c4e-4a6f-8b7d-1e2f3a4b5c6d";
+
+const applicationSchema = createVendorApplicationSchema({
+  countries: ["NG", "CN", "GB"],
+  categories: ["phones", "laptops", "solar_power"],
+  userId: USER_ID,
+});
+
+const validApplication = {
+  businessName: "  Ada Gadgets ",
+  countryCode: "ng",
+  city: " Lagos ",
+  phone: "+234 803 123 4567",
+  businessRegNumber: "",
+  categories: ["phones", "laptops"],
+  documentPath: `${USER_ID}/id_1.pdf`,
+};
+
+describe("createVendorApplicationSchema", () => {
+  it("trims and normalizes a valid application", () => {
+    expect(applicationSchema.parse(validApplication)).toEqual({
+      businessName: "Ada Gadgets",
+      countryCode: "NG",
+      city: "Lagos",
+      phone: "+2348031234567",
+      businessRegNumber: null,
+      categories: ["phones", "laptops"],
+      documentPath: `${USER_ID}/id_1.pdf`,
+    });
+  });
+
+  it("keeps an optional registration number", () => {
     expect(
-      vendorApplicationSchema.parse({ businessName: "  Ada Gadgets ", countryCode: "ng", city: " Lagos " }),
-    ).toEqual({ businessName: "Ada Gadgets", countryCode: "NG", city: "Lagos" });
+      applicationSchema.parse({ ...validApplication, businessRegNumber: " RC 1234567 " }).businessRegNumber,
+    ).toBe("RC 1234567");
   });
 
   it.each([
     ["short business name", { businessName: "A" }, "businessName"],
     ["missing city", { city: "  " }, "city"],
-    ["bad country", { countryCode: "Nigeria" }, "countryCode"],
+    ["unknown country", { countryCode: "ZZ" }, "countryCode"],
+    ["country name instead of code", { countryCode: "Nigeria" }, "countryCode"],
+    ["local phone format", { phone: "08031234567" }, "phone"],
+    ["missing phone", { phone: "" }, "phone"],
+    ["no categories", { categories: [] }, "categories"],
+    ["a prohibited category", { categories: ["weapons"] }, "categories"],
+    ["a group instead of a category", { categories: ["electronics"] }, "categories"],
+    ["a repeated category", { categories: ["phones", "phones"] }, "categories"],
+    ["13 categories", { categories: Array.from({ length: 13 }, (_, i) => `c${i}`) }, "categories"],
+    ["no document", { documentPath: "" }, "documentPath"],
+    ["another user's document", { documentPath: `${OTHER_USER_ID}/id_1.pdf` }, "documentPath"],
+    ["a document with a bad extension", { documentPath: `${USER_ID}/id_1.exe` }, "documentPath"],
+    ["a document outside the folder", { documentPath: `${USER_ID}/../x.pdf` }, "documentPath"],
+    ["an over-long registration number", { businessRegNumber: "9".repeat(51) }, "businessRegNumber"],
   ])("rejects %s", (_label, override, field) => {
-    const result = vendorApplicationSchema.safeParse({
-      businessName: "Ada Gadgets",
-      countryCode: "NG",
-      city: "Lagos",
-      ...override,
-    });
+    const result = applicationSchema.safeParse({ ...validApplication, ...override });
     expect(result.success).toBe(false);
-    expect(result.error?.issues.map((issue) => issue.path[0])).toContain(field);
+    expect(result.error?.issues.map((issue) => String(issue.path[0]))).toContain(field);
   });
 
   it("ignores a status field sent by the client", () => {
-    const parsed = vendorApplicationSchema.parse({
-      businessName: "Ada Gadgets",
-      countryCode: "NG",
-      city: "Lagos",
-      status: "approved",
+    expect(applicationSchema.parse({ ...validApplication, status: "approved" })).not.toHaveProperty("status");
+  });
+});
+
+describe("vendorReviewSchema", () => {
+  const vendorId = "6f1c2c8e-8a4b-4f7e-9d3a-2b1e5c7d9f00";
+
+  it("approves without a reason", () => {
+    expect(vendorReviewSchema.parse({ vendorId, intent: "approve" })).toMatchObject({
+      intent: "approve",
+      reason: "",
     });
-    expect(parsed).not.toHaveProperty("status");
+  });
+
+  it.each(["reject", "suspend"])("needs a reason to %s", (intent) => {
+    const result = vendorReviewSchema.safeParse({ vendorId, intent, reason: "no" });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.path).toEqual(["reason"]);
+    expect(vendorReviewSchema.safeParse({ vendorId, intent, reason: " ID photo is blurry. " }).success).toBe(
+      true,
+    );
+  });
+
+  it("rejects unknown actions and bad ids", () => {
+    expect(
+      vendorReviewSchema.safeParse({ vendorId, intent: "delete", reason: "long enough reason" }).success,
+    ).toBe(false);
+    expect(vendorReviewSchema.safeParse({ vendorId: "1", intent: "approve" }).success).toBe(false);
   });
 });
 

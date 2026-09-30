@@ -1,11 +1,69 @@
 import { z } from "zod";
 import { countryCodeSchema } from "@/lib/auth/schemas";
+import { normalizePhone } from "@/lib/profile/phone";
+import { parseVendorDocumentPath } from "@/lib/storage/vendor-documents";
 
-export const vendorApplicationSchema = z.object({
-  businessName: z.string().trim().min(2, "Enter your business name.").max(120, "Business name is too long."),
-  countryCode: countryCodeSchema,
-  city: z.string().trim().min(1, "Enter your city.").max(80, "City name is too long."),
-});
+/** What the application form is checked against. Loaded from the database. */
+export type VendorApplicationContext = {
+  /** Codes of countries a vendor may operate from. */
+  countries: readonly string[];
+  /** Slugs of categories listings may use. */
+  categories: readonly string[];
+  /** The signed-in user. The ID document must sit in their own storage folder. */
+  userId: string;
+};
+
+const requiredPhone = z
+  .string()
+  .trim()
+  .transform((value, ctx) => {
+    const normalized = normalizePhone(value);
+    if (!normalized) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Use international format with country code, for example +2348031234567.",
+      });
+      return z.NEVER;
+    }
+    return normalized;
+  });
+
+/** Vendor application, shared by the form (browser) and the server action. */
+export function createVendorApplicationSchema(context: VendorApplicationContext) {
+  return z.object({
+    businessName: z
+      .string()
+      .trim()
+      .min(2, "Enter your business name.")
+      .max(120, "Business name is too long."),
+    countryCode: countryCodeSchema.refine(
+      (code) => context.countries.includes(code),
+      "Choose a country from the list.",
+    ),
+    city: z.string().trim().min(1, "Enter your city.").max(80, "City name is too long."),
+    phone: requiredPhone,
+    businessRegNumber: z
+      .string()
+      .trim()
+      .max(50, "Registration number is too long.")
+      .default("")
+      .transform((value) => (value === "" ? null : value)),
+    categories: z
+      .array(z.string())
+      .min(1, "Choose at least one category.")
+      .max(12, "Choose at most 12 categories.")
+      .refine((slugs) => new Set(slugs).size === slugs.length, "Each category can be chosen once.")
+      .refine(
+        (slugs) => slugs.every((slug) => context.categories.includes(slug)),
+        "Choose categories from the list.",
+      ),
+    documentPath: z
+      .string()
+      .refine((path) => parseVendorDocumentPath(path)?.userId === context.userId, "Upload your ID document."),
+  });
+}
+
+export type VendorApplicationInput = z.output<ReturnType<typeof createVendorApplicationSchema>>;
 
 export const vendorIdSchema = z.uuid("Invalid vendor.");
 
@@ -14,8 +72,6 @@ export const suspensionNoteSchema = z
   .trim()
   .max(2000, "Note is too long.")
   .transform((value) => (value === "" ? null : value));
-
-export type VendorApplicationInput = z.infer<typeof vendorApplicationSchema>;
 
 /**
  * Payout details are a small set of text fields (for example bank_name,
@@ -40,3 +96,21 @@ export const rejectionNoteSchema = z
   .transform((value) => (value === "" ? null : value));
 
 export type PayoutDetails = z.infer<typeof payoutDetailsSchema>;
+
+export const VENDOR_REVIEW_INTENTS = ["approve", "reject", "suspend"] as const;
+
+export const vendorReviewSchema = z
+  .object({
+    vendorId: vendorIdSchema,
+    intent: z.enum(VENDOR_REVIEW_INTENTS),
+    reason: z.string().trim().max(2000, "The reason is too long.").default(""),
+  })
+  .superRefine((data, ctx) => {
+    if (data.intent !== "approve" && data.reason.length < 5) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["reason"],
+        message: "Give a reason of at least 5 characters. The vendor will see it.",
+      });
+    }
+  });

@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireApprovedVendor } from "@/lib/auth/session";
 import { getOwnVendor } from "@/lib/vendors/queries";
@@ -16,10 +18,20 @@ export default async function VendorPage() {
           <CardTitle>{vendor?.business_name ?? "Vendor"}</CardTitle>
           <CardDescription>{vendor ? `${vendor.city}, ${vendor.country_code}` : null}</CardDescription>
         </CardHeader>
-        <CardContent className="text-muted-foreground text-sm">
-          Your vendor dashboard (listings, orders, inspection uploads and payouts) arrives in a later batch.
+        <CardContent className="flex flex-wrap gap-2">
+          <Link href="/vendor/products" className={buttonVariants()}>
+            Manage products
+          </Link>
+          {vendor ? (
+            <Link href={`/vendors/${vendor.id}`} className={buttonVariants({ variant: "outline" })}>
+              View your public page
+            </Link>
+          ) : null}
         </CardContent>
       </Card>
+      <p className="text-muted-foreground text-sm">
+        Orders, inspection uploads and payouts arrive in later batches.
+      </p>
     </div>
   );
 }

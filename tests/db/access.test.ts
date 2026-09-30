@@ -15,6 +15,7 @@ describe.skipIf(!DATABASE_URL)("database: access rules", () => {
   let vendorId: string;
   let pendingVendorId: string;
   let cnNgCorridorId: string;
+  let ngNgCorridorId: string;
 
   beforeAll(async () => {
     await h.start();
@@ -29,6 +30,10 @@ describe.skipIf(!DATABASE_URL)("database: access rules", () => {
       "select id from public.corridors where origin_country = 'CN' and destination_country = 'NG'",
     );
     cnNgCorridorId = corridor.rows[0].id;
+    const localCorridor = await h.query(
+      "select id from public.corridors where origin_country = 'NG' and destination_country = 'NG'",
+    );
+    ngNgCorridorId = localCorridor.rows[0].id;
 
     await h.asServer();
     const approved = await h.query(
@@ -40,18 +45,18 @@ describe.skipIf(!DATABASE_URL)("database: access rules", () => {
     await h.setRoleAsServer(vendorOwner.id, "vendor");
 
     const pending = await h.query(
-      `insert into public.vendors (owner_id, business_name, country_code, city)
-       values ($1, 'Pending Shop', 'NG', 'Lagos') returning id`,
+      `insert into public.vendors (owner_id, business_name, country_code, city, phone, categories, id_document_path)
+       values ($1, 'Pending Shop', 'NG', 'Lagos', '+2348031234567', array['phones'], $1::uuid::text || '/doc.pdf') returning id`,
       [pendingOwner.id],
     );
     pendingVendorId = pending.rows[0].id;
 
     await h.query(
-      `insert into public.products (vendor_id, title, category, price_minor, currency, stock, active) values
-         ($1, 'Visible Phone', 'phones', 15000000, 'NGN', 5, true),
-         ($1, 'Hidden Draft Phone', 'phones', 15000000, 'NGN', 5, false),
-         ($2, 'Pending Vendor Phone', 'phones', 15000000, 'NGN', 5, true)`,
-      [vendorId, pendingVendorId],
+      `insert into public.products (vendor_id, title, category, price_minor, currency, stock, active, corridor_id) values
+         ($1, 'Visible Phone', 'phones', 15000000, 'NGN', 5, true, $3),
+         ($1, 'Hidden Draft Phone', 'phones', 15000000, 'NGN', 5, false, $3),
+         ($2, 'Pending Vendor Phone', 'phones', 15000000, 'NGN', 5, true, $4)`,
+      [vendorId, pendingVendorId, cnNgCorridorId, ngNgCorridorId],
     );
   });
 
@@ -188,8 +193,8 @@ describe.skipIf(!DATABASE_URL)("database: access rules", () => {
           PERMISSION_DENIED,
         );
         const { rows } = await h.query(
-          `insert into public.vendors (owner_id, business_name, country_code, city)
-           values ($1, 'Ada Gadgets', 'NG', 'Lagos') returning status`,
+          `insert into public.vendors (owner_id, business_name, country_code, city, phone, categories, id_document_path)
+           values ($1, 'Ada Gadgets', 'NG', 'Lagos', '+2348031234567', array['phones'], $1::uuid::text || '/doc.pdf') returning status`,
           [buyer.id],
         );
         expect(rows[0].status).toBe("pending");
@@ -200,8 +205,8 @@ describe.skipIf(!DATABASE_URL)("database: access rules", () => {
       await h.scenario(async () => {
         await h.actAs(buyer);
         await h.expectError(
-          `insert into public.vendors (owner_id, business_name, country_code, city)
-           values ($1, 'Fake Shop', 'NG', 'Lagos')`,
+          `insert into public.vendors (owner_id, business_name, country_code, city, phone, categories, id_document_path)
+           values ($1, 'Fake Shop', 'NG', 'Lagos', '+2348031234567', array['phones'], $1::uuid::text || '/doc.pdf')`,
           [otherBuyer.id],
           RLS_DENIED,
         );
@@ -212,8 +217,8 @@ describe.skipIf(!DATABASE_URL)("database: access rules", () => {
       await h.scenario(async () => {
         await h.actAs(buyer);
         const { rows } = await h.query(
-          `insert into public.vendors (owner_id, business_name, country_code, city)
-           values ($1, 'Ada Gadgets', 'NG', 'Lagos') returning id`,
+          `insert into public.vendors (owner_id, business_name, country_code, city, phone, categories, id_document_path)
+           values ($1, 'Ada Gadgets', 'NG', 'Lagos', '+2348031234567', array['phones'], $1::uuid::text || '/doc.pdf') returning id`,
           [buyer.id],
         );
         await h.expectError(
@@ -229,8 +234,8 @@ describe.skipIf(!DATABASE_URL)("database: access rules", () => {
       await h.scenario(async () => {
         await h.actAs(buyer);
         const { rows } = await h.query(
-          `insert into public.vendors (owner_id, business_name, country_code, city)
-           values ($1, 'Ada Gadgets', 'NG', 'Lagos') returning id`,
+          `insert into public.vendors (owner_id, business_name, country_code, city, phone, categories, id_document_path)
+           values ($1, 'Ada Gadgets', 'NG', 'Lagos', '+2348031234567', array['phones'], $1::uuid::text || '/doc.pdf') returning id`,
           [buyer.id],
         );
         const newVendorId = rows[0].id;
@@ -269,8 +274,22 @@ describe.skipIf(!DATABASE_URL)("database: access rules", () => {
         await h.actAs("anon");
         await h.expectError("select * from public.vendors", [], PERMISSION_DENIED);
         const { rows, fields } = await h.query("select * from public.vendor_directory");
-        expect(fields.map((f) => f.name)).toEqual(["id", "business_name", "country_code"]);
-        expect(rows).toEqual([{ id: vendorId, business_name: "Shenzhen Phones", country_code: "CN" }]);
+        expect(fields.map((f) => f.name)).toEqual([
+          "id",
+          "business_name",
+          "country_code",
+          "city",
+          "categories",
+          "created_at",
+        ]);
+        expect(rows).toHaveLength(1);
+        expect(rows[0]).toMatchObject({
+          id: vendorId,
+          business_name: "Shenzhen Phones",
+          country_code: "CN",
+          city: "Shenzhen",
+          categories: [],
+        });
       });
     });
 
@@ -296,15 +315,15 @@ describe.skipIf(!DATABASE_URL)("database: access rules", () => {
       await h.scenario(async () => {
         await h.actAs(vendorOwner);
         const ok = await h.query(
-          `insert into public.products (vendor_id, title, category, price_minor, currency)
-           values ($1, 'New Laptop', 'laptops', 45000000, 'NGN')`,
-          [vendorId],
+          `insert into public.products (vendor_id, title, category, price_minor, currency, corridor_id)
+           values ($1, 'New Laptop', 'laptops', 45000000, 'NGN', $2)`,
+          [vendorId, cnNgCorridorId],
         );
         expect(ok.rowCount).toBe(1);
         await h.expectError(
-          `insert into public.products (vendor_id, title, category, price_minor, currency)
-           values ($1, 'Sneaky', 'laptops', 1, 'NGN')`,
-          [pendingVendorId],
+          `insert into public.products (vendor_id, title, category, price_minor, currency, corridor_id)
+           values ($1, 'Sneaky', 'laptops', 1, 'NGN', $2)`,
+          [pendingVendorId, ngNgCorridorId],
           RLS_DENIED,
         );
       });
@@ -314,9 +333,9 @@ describe.skipIf(!DATABASE_URL)("database: access rules", () => {
       await h.scenario(async () => {
         await h.actAs(buyer);
         await h.expectError(
-          `insert into public.products (vendor_id, title, category, price_minor, currency)
-           values ($1, 'Fake', 'phones', 1, 'NGN')`,
-          [vendorId],
+          `insert into public.products (vendor_id, title, category, price_minor, currency, corridor_id)
+           values ($1, 'Fake', 'phones', 1, 'NGN', $2)`,
+          [vendorId, cnNgCorridorId],
           RLS_DENIED,
         );
       });

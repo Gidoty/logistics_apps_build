@@ -8,9 +8,16 @@ create schema auth;
 
 create table auth.users (
   id                  uuid primary key,
+  instance_id         uuid,
+  aud                 text,
+  role                text,
   email               text,
+  encrypted_password  text,
+  email_confirmed_at  timestamptz,
+  raw_app_meta_data   jsonb not null default '{}'::jsonb,
   raw_user_meta_data  jsonb not null default '{}'::jsonb,
-  created_at          timestamptz not null default now()
+  created_at          timestamptz not null default now(),
+  updated_at          timestamptz not null default now()
 );
 
 create function auth.uid()

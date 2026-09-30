@@ -16,6 +16,9 @@ export async function SiteHeader() {
           {APP_NAME}
         </Link>
         <nav className="flex items-center gap-1 text-sm">
+          <Link href="/shop" className={buttonVariants({ variant: "ghost", size: "sm" })}>
+            Shop
+          </Link>
           {user ? (
             <>
               {isVendor ? (

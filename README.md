@@ -22,7 +22,7 @@ Next.js 16 (App Router, TypeScript strict), Tailwind CSS v4 with shadcn/ui, Supa
    ```
    The seed must run before the first sign-up (new profiles default to NGN).
    Alternative without the CLI: paste the files in `supabase/migrations/` (in filename order), then `supabase/seed.sql`, into the SQL editor.
-   The migrations also create the public `product-images` storage bucket and its access rules.
+   The migrations also create two storage buckets with their access rules: `product-images` (public read) and `vendor-documents` (private).
 4. In the dashboard, Auth > URL Configuration: set Site URL to `http://localhost:3000` (or your deployed URL) and add `http://localhost:3000/auth/callback` to Redirect URLs.
 5. Run: `npm run dev` and open http://localhost:3000.
 
@@ -36,6 +36,14 @@ npx supabase status   # copy API URL, anon key and service_role key into .env.lo
 npm run dev
 ```
 
+Demo vendors and 12 demo products (local only, never production):
+
+```bash
+npm run db:seed-dev   # needs psql; refuses to run without its built-in opt-in
+```
+
+Or paste `supabase/seed-dev.sql` into the local Studio SQL editor, starting with `set mapk.dev_seed = 'yes';`. The placeholder pictures are in `public/demo` (`npm run demo:images` regenerates them).
+
 Local auth emails are caught by Mailpit at http://127.0.0.1:54324. `npm run db:reset` rebuilds the database from migrations and seed.
 
 ## Create the first admin
@@ -46,17 +54,19 @@ Local auth emails are caught by Mailpit at http://127.0.0.1:54324. `npm run db:r
 
 ## Scripts
 
-| Command                           | What it does                                                                 |
-| --------------------------------- | ---------------------------------------------------------------------------- |
-| `npm run dev` / `npm run build`   | Dev server / production build                                                |
-| `npm run lint` / `typecheck`      | ESLint / TypeScript                                                          |
-| `npm run format` / `format:check` | Prettier write / check                                                       |
-| `npm test`                        | Unit tests. DB tests are skipped unless `DATABASE_URL` is set                |
-| `npm run test:db`                 | Schema and RLS tests on a throwaway Postgres (needs Postgres 15+, no Docker) |
-| `npm run test:e2e`                | Playwright at 375px width (builds and starts the app)                        |
-| `npm run db:start` / `db:reset`   | Start / rebuild local Supabase                                               |
-| `npm run db:types`                | Regenerate `lib/supabase/database.types.ts` from local Supabase              |
-| `npm run make-admin -- <email>`   | Promote an existing account to admin                                         |
+| Command                           | What it does                                                                               |
+| --------------------------------- | ------------------------------------------------------------------------------------------ |
+| `npm run dev` / `npm run build`   | Dev server / production build                                                              |
+| `npm run lint` / `typecheck`      | ESLint / TypeScript                                                                        |
+| `npm run format` / `format:check` | Prettier write / check                                                                     |
+| `npm test`                        | Unit tests. DB tests are skipped unless `DATABASE_URL` is set                              |
+| `npm run test:db`                 | Schema and RLS tests on a throwaway Postgres (needs Postgres 15+, no Docker)               |
+| `npm run test:e2e`                | Playwright at 375px against a fake Supabase: shop pages, Slow 4G weight, image compression |
+| `npm run db:start` / `db:reset`   | Start / rebuild local Supabase                                                             |
+| `npm run db:types`                | Regenerate `lib/supabase/database.types.ts` from local Supabase                            |
+| `npm run make-admin -- <email>`   | Promote an existing account to admin                                                       |
+| `npm run db:seed-dev`             | Load demo vendors and products into local Supabase                                         |
+| `npm run demo:images`             | Regenerate the placeholder pictures in `public/demo`                                       |
 
 DB tests against the Supabase CLI stack instead:
 

@@ -3,7 +3,7 @@ import {
   buildProductImagePath,
   isProductImageMimeType,
   parseProductImagePath,
-  PRODUCT_IMAGE_MAX_BYTES,
+  PRODUCT_IMAGE_MAX_ORIGINAL_BYTES,
   productImageUrl,
   validateProductImageFile,
 } from "@/lib/storage/product-images";
@@ -16,7 +16,9 @@ describe("validateProductImageFile", () => {
     for (const type of ["image/jpeg", "image/png", "image/webp"]) {
       expect(validateProductImageFile({ type, size: 1024 })).toBeNull();
     }
-    expect(validateProductImageFile({ type: "image/png", size: PRODUCT_IMAGE_MAX_BYTES })).toBeNull();
+    expect(
+      validateProductImageFile({ type: "image/png", size: PRODUCT_IMAGE_MAX_ORIGINAL_BYTES }),
+    ).toBeNull();
   });
 
   it.each([
@@ -24,7 +26,7 @@ describe("validateProductImageFile", () => {
     ["gif", { type: "image/gif", size: 100 }, /JPG, PNG or WebP/],
     ["html", { type: "text/html", size: 100 }, /JPG, PNG or WebP/],
     ["empty file", { type: "image/png", size: 0 }, /empty/],
-    ["too large", { type: "image/png", size: PRODUCT_IMAGE_MAX_BYTES + 1 }, /smaller than 5 MB/],
+    ["too large", { type: "image/png", size: PRODUCT_IMAGE_MAX_ORIGINAL_BYTES + 1 }, /smaller than 5 MB/],
   ])("rejects %s", (_label, file, message) => {
     expect(validateProductImageFile(file)).toMatch(message);
   });

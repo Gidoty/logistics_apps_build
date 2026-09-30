@@ -13,6 +13,9 @@ Decisions already made are in `docs/DECISIONS.md`. Do not re-ask them.
 - Every Supabase table: RLS enabled with explicit policies and explicit grants. `tests/db/schema.test.ts` fails if a table lacks RLS, a policy, id/created_at/updated_at, or an index on a foreign key. Add access tests in `tests/db/access.test.ts`.
 - Schema changes after Batch 1 are new files in `supabase/migrations/`. Never edit a migration that may already be applied.
 - Vendor payout details change only through `request_payout_change` and admin approval. Payments read `payout_details_json`, never the pending column.
+- Rules that protect buyers (prohibited items, category, route, publishing) live in database triggers. App code mirrors them only to give instant feedback. Keep the two in step and test both.
+- Public pages (shop, vendor pages) read through `createPublicClient()` so they show exactly what a visitor sees, even to a signed-in admin.
+- Money typed by people goes through `lib/money` (strings in, integer minor units out). Never `parseFloat` a price.
 - Money-moving state changes (order status, ledger, payouts) go through server code, never direct client writes.
 - Business logic in `lib/<domain>`. Components in `components/` are UI only.
 - Zod on every input. TypeScript strict, no `any` without a comment explaining why.
@@ -26,5 +29,7 @@ Decisions already made are in `docs/DECISIONS.md`. Do not re-ask them.
 ```bash
 npm run format:check && npm run lint && npm run typecheck && npm test && npm run test:db
 ```
+
+Browser tests (`npm run test:e2e`) build the app and run it against a fake Supabase (`tests/e2e/mock-supabase.mjs`). They check layout at 375px, page weight on Slow 4G and the queries sent, not database results. Tests with real accounts run only when `E2E_BASE_URL` is set.
 
 Next.js 16 renamed middleware to `proxy.ts` (root). Request APIs (`cookies()`, `params`, `searchParams`) are async.

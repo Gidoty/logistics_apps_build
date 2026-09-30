@@ -15,6 +15,7 @@ export const VENDOR_STATUS_LABELS: Record<VendorStatus, string> = {
   pending: "Waiting for approval",
   approved: "Approved",
   suspended: "Suspended",
+  rejected: "Not approved",
 };
 
 export function isUserRole(value: unknown): value is UserRole {
