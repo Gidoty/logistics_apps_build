@@ -35,6 +35,9 @@ export default function HomePage() {
           <Link href="/login" className={buttonVariants({ size: "lg", variant: "outline" })}>
             Sign in
           </Link>
+          <Link href="/estimate" className={buttonVariants({ size: "lg", variant: "ghost" })}>
+            Estimate a delivered price
+          </Link>
         </div>
       </section>
       <section className="grid gap-4 sm:grid-cols-3">

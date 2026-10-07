@@ -216,6 +216,30 @@ export type Database = {
         };
         Relationships: [];
       };
+      delivery_zones: {
+        Row: {
+          created_at: string;
+          id: string;
+          name: string;
+          states: string[];
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          name: string;
+          states: string[];
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          name?: string;
+          states?: string[];
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       disputes: {
         Row: {
           created_at: string;
@@ -264,47 +288,129 @@ export type Database = {
           },
         ];
       };
+      duty_rates: {
+        Row: {
+          category_slug: string | null;
+          corridor_id: string;
+          created_at: string;
+          effective_from: string;
+          effective_to: string | null;
+          id: string;
+          import_duty_percent: number;
+          notes: string | null;
+          other_levies_percent: number;
+          updated_at: string;
+          vat_percent: number;
+        };
+        Insert: {
+          category_slug?: string | null;
+          corridor_id: string;
+          created_at?: string;
+          effective_from?: string;
+          effective_to?: string | null;
+          id?: string;
+          import_duty_percent: number;
+          notes?: string | null;
+          other_levies_percent: number;
+          updated_at?: string;
+          vat_percent: number;
+        };
+        Update: {
+          category_slug?: string | null;
+          corridor_id?: string;
+          created_at?: string;
+          effective_from?: string;
+          effective_to?: string | null;
+          id?: string;
+          import_duty_percent?: number;
+          notes?: string | null;
+          other_levies_percent?: number;
+          updated_at?: string;
+          vat_percent?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "duty_rates_category_slug_fkey";
+            columns: ["category_slug"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["slug"];
+          },
+          {
+            foreignKeyName: "duty_rates_corridor_id_fkey";
+            columns: ["corridor_id"];
+            isOneToOne: false;
+            referencedRelation: "corridors";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       fee_rules: {
         Row: {
-          active: boolean;
-          amount_minor: number | null;
-          calc_method: string;
+          calc_method: Database["public"]["Enums"]["fee_calc_method"];
+          category_slug: string | null;
           corridor_id: string;
           created_at: string;
           currency: string;
-          fee_type: string;
+          effective_from: string;
+          effective_to: string | null;
+          fee_type: Database["public"]["Enums"]["fee_type"];
           id: string;
+          max_amount_minor: number | null;
           min_amount_minor: number | null;
-          percent: number | null;
+          notes: string | null;
           updated_at: string;
+          value: number;
+          weight_from_g: number | null;
+          weight_to_g: number | null;
+          zone_id: string | null;
         };
         Insert: {
-          active?: boolean;
-          amount_minor?: number | null;
-          calc_method: string;
+          calc_method: Database["public"]["Enums"]["fee_calc_method"];
+          category_slug?: string | null;
           corridor_id: string;
           created_at?: string;
           currency: string;
-          fee_type: string;
+          effective_from?: string;
+          effective_to?: string | null;
+          fee_type: Database["public"]["Enums"]["fee_type"];
           id?: string;
+          max_amount_minor?: number | null;
           min_amount_minor?: number | null;
-          percent?: number | null;
+          notes?: string | null;
           updated_at?: string;
+          value: number;
+          weight_from_g?: number | null;
+          weight_to_g?: number | null;
+          zone_id?: string | null;
         };
         Update: {
-          active?: boolean;
-          amount_minor?: number | null;
-          calc_method?: string;
+          calc_method?: Database["public"]["Enums"]["fee_calc_method"];
+          category_slug?: string | null;
           corridor_id?: string;
           created_at?: string;
           currency?: string;
-          fee_type?: string;
+          effective_from?: string;
+          effective_to?: string | null;
+          fee_type?: Database["public"]["Enums"]["fee_type"];
           id?: string;
+          max_amount_minor?: number | null;
           min_amount_minor?: number | null;
-          percent?: number | null;
+          notes?: string | null;
           updated_at?: string;
+          value?: number;
+          weight_from_g?: number | null;
+          weight_to_g?: number | null;
+          zone_id?: string | null;
         };
         Relationships: [
+          {
+            foreignKeyName: "fee_rules_category_slug_fkey";
+            columns: ["category_slug"];
+            isOneToOne: false;
+            referencedRelation: "categories";
+            referencedColumns: ["slug"];
+          },
           {
             foreignKeyName: "fee_rules_corridor_id_fkey";
             columns: ["corridor_id"];
@@ -319,40 +425,53 @@ export type Database = {
             referencedRelation: "currencies";
             referencedColumns: ["code"];
           },
+          {
+            foreignKeyName: "fee_rules_zone_id_fkey";
+            columns: ["zone_id"];
+            isOneToOne: false;
+            referencedRelation: "delivery_zones";
+            referencedColumns: ["id"];
+          },
         ];
       };
       fx_rates: {
         Row: {
           base_currency: string;
           created_at: string;
+          ended_at: string | null;
           fetched_at: string;
           id: string;
           is_override: boolean;
           quote_currency: string;
           rate: number;
           source: string;
+          spread_percent: number;
           updated_at: string;
         };
         Insert: {
           base_currency: string;
           created_at?: string;
+          ended_at?: string | null;
           fetched_at?: string;
           id?: string;
           is_override?: boolean;
           quote_currency: string;
           rate: number;
           source: string;
+          spread_percent?: number;
           updated_at?: string;
         };
         Update: {
           base_currency?: string;
           created_at?: string;
+          ended_at?: string | null;
           fetched_at?: string;
           id?: string;
           is_override?: boolean;
           quote_currency?: string;
           rate?: number;
           source?: string;
+          spread_percent?: number;
           updated_at?: string;
         };
         Relationships: [
@@ -723,7 +842,9 @@ export type Database = {
           decline_note: string | null;
           decline_reason: string | null;
           delivery_code_hash: string | null;
+          height_cm: number | null;
           id: string;
+          length_cm: number | null;
           link_preview_json: Json | null;
           max_budget_minor: number | null;
           order_type: Database["public"]["Enums"]["order_type"];
@@ -737,6 +858,7 @@ export type Database = {
           updated_at: string;
           variant_notes: string | null;
           vendor_id: string | null;
+          width_cm: number | null;
         };
         Insert: {
           buyer_currency: string;
@@ -747,7 +869,9 @@ export type Database = {
           decline_note?: string | null;
           decline_reason?: string | null;
           delivery_code_hash?: string | null;
+          height_cm?: number | null;
           id?: string;
+          length_cm?: number | null;
           link_preview_json?: Json | null;
           max_budget_minor?: number | null;
           order_type: Database["public"]["Enums"]["order_type"];
@@ -761,6 +885,7 @@ export type Database = {
           updated_at?: string;
           variant_notes?: string | null;
           vendor_id?: string | null;
+          width_cm?: number | null;
         };
         Update: {
           buyer_currency?: string;
@@ -771,7 +896,9 @@ export type Database = {
           decline_note?: string | null;
           decline_reason?: string | null;
           delivery_code_hash?: string | null;
+          height_cm?: number | null;
           id?: string;
+          length_cm?: number | null;
           link_preview_json?: Json | null;
           max_budget_minor?: number | null;
           order_type?: Database["public"]["Enums"]["order_type"];
@@ -785,6 +912,7 @@ export type Database = {
           updated_at?: string;
           variant_notes?: string | null;
           vendor_id?: string | null;
+          width_cm?: number | null;
         };
         Relationships: [
           {
@@ -933,7 +1061,9 @@ export type Database = {
           description: string;
           flagged_at: string | null;
           flagged_reason: string | null;
+          height_cm: number | null;
           id: string;
+          length_cm: number | null;
           price_minor: number;
           requires_special_handling: boolean;
           search_vector: unknown | null;
@@ -944,6 +1074,7 @@ export type Database = {
           vendor_id: string;
           warranty_months: number;
           weight_grams: number | null;
+          width_cm: number | null;
         };
         Insert: {
           active?: boolean;
@@ -957,7 +1088,9 @@ export type Database = {
           description?: string;
           flagged_at?: string | null;
           flagged_reason?: string | null;
+          height_cm?: number | null;
           id?: string;
+          length_cm?: number | null;
           price_minor: number;
           requires_special_handling?: boolean;
           search_vector?: never;
@@ -968,6 +1101,7 @@ export type Database = {
           vendor_id: string;
           warranty_months?: number;
           weight_grams?: number | null;
+          width_cm?: number | null;
         };
         Update: {
           active?: boolean;
@@ -981,7 +1115,9 @@ export type Database = {
           description?: string;
           flagged_at?: string | null;
           flagged_reason?: string | null;
+          height_cm?: number | null;
           id?: string;
+          length_cm?: number | null;
           price_minor?: number;
           requires_special_handling?: boolean;
           search_vector?: never;
@@ -992,6 +1128,7 @@ export type Database = {
           vendor_id?: string;
           warranty_months?: number;
           weight_grams?: number | null;
+          width_cm?: number | null;
         };
         Relationships: [
           {
@@ -1145,6 +1282,41 @@ export type Database = {
           },
         ];
       };
+      quote_line_overrides: {
+        Row: {
+          created_at: string;
+          id: string;
+          original_amount_minor: number | null;
+          quote_line_id: string;
+          reason: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          original_amount_minor?: number | null;
+          quote_line_id: string;
+          reason: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          original_amount_minor?: number | null;
+          quote_line_id?: string;
+          reason?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "quote_line_overrides_quote_line_id_fkey";
+            columns: ["quote_line_id"];
+            isOneToOne: true;
+            referencedRelation: "quote_lines";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       quote_lines: {
         Row: {
           amount_minor: number;
@@ -1191,6 +1363,41 @@ export type Database = {
             foreignKeyName: "quote_lines_quote_id_fkey";
             columns: ["quote_id"];
             isOneToOne: false;
+            referencedRelation: "quotes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      quote_pricing_snapshots: {
+        Row: {
+          created_at: string;
+          engine_version: string;
+          id: string;
+          quote_id: string;
+          snapshot: Json;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          engine_version: string;
+          id?: string;
+          quote_id: string;
+          snapshot: Json;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          engine_version?: string;
+          id?: string;
+          quote_id?: string;
+          snapshot?: Json;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "quote_pricing_snapshots_quote_id_fkey";
+            columns: ["quote_id"];
+            isOneToOne: true;
             referencedRelation: "quotes";
             referencedColumns: ["id"];
           },
@@ -1360,6 +1567,33 @@ export type Database = {
             referencedColumns: ["code"];
           },
         ];
+      };
+      request_throttle: {
+        Row: {
+          bucket: string;
+          created_at: string;
+          hits: number;
+          id: string;
+          updated_at: string;
+          window_start: string;
+        };
+        Insert: {
+          bucket: string;
+          created_at?: string;
+          hits?: number;
+          id?: string;
+          updated_at?: string;
+          window_start: string;
+        };
+        Update: {
+          bucket?: string;
+          created_at?: string;
+          hits?: number;
+          id?: string;
+          updated_at?: string;
+          window_start?: string;
+        };
+        Relationships: [];
       };
       shipment_events: {
         Row: {
@@ -1655,11 +1889,22 @@ export type Database = {
       };
     };
     Functions: {
+      _effective_fx_row: {
+        Args: {
+          _base: string;
+          _quote: string;
+        };
+        Returns: unknown;
+      };
       _expire_order_quote: {
         Args: {
           _order_id: string;
         };
         Returns: boolean;
+      };
+      _require_admin: {
+        Args: never;
+        Returns: undefined;
       };
       accept_quote: {
         Args: {
@@ -1692,12 +1937,52 @@ export type Database = {
         };
         Returns: undefined;
       };
+      close_duty_rate: {
+        Args: {
+          _id: string;
+        };
+        Returns: undefined;
+      };
+      close_fee_rule: {
+        Args: {
+          _id: string;
+        };
+        Returns: undefined;
+      };
       corridor_matches_vendor: {
         Args: {
           _corridor_id: string;
           _vendor_id: string;
         };
         Returns: boolean;
+      };
+      create_duty_rate: {
+        Args: {
+          _corridor_id: string;
+          _category_slug: string;
+          _import_duty_percent: number;
+          _vat_percent: number;
+          _other_levies_percent: number;
+          _notes?: string;
+        };
+        Returns: string;
+      };
+      create_fee_rule: {
+        Args: {
+          _corridor_id: string;
+          _fee_type: Database["public"]["Enums"]["fee_type"];
+          _calc_method: Database["public"]["Enums"]["fee_calc_method"];
+          _value: number;
+          _currency: string;
+          _min_amount_minor?: number;
+          _max_amount_minor?: number;
+          _weight_from_g?: number;
+          _weight_to_g?: number;
+          _category_slug?: string;
+          _zone_id?: string;
+          _notes?: string;
+        };
+        Returns: string;
       };
       create_link_order: {
         Args: {
@@ -1822,9 +2107,48 @@ export type Database = {
         };
         Returns: undefined;
       };
+      remove_fx_override: {
+        Args: {
+          _base: string;
+          _quote: string;
+        };
+        Returns: undefined;
+      };
+      replace_duty_rate: {
+        Args: {
+          _old_id: string;
+          _import_duty_percent: number;
+          _vat_percent: number;
+          _other_levies_percent: number;
+          _notes?: string;
+        };
+        Returns: string;
+      };
+      replace_fee_rule: {
+        Args: {
+          _old_id: string;
+          _calc_method: Database["public"]["Enums"]["fee_calc_method"];
+          _value: number;
+          _currency: string;
+          _min_amount_minor?: number;
+          _max_amount_minor?: number;
+          _weight_from_g?: number;
+          _weight_to_g?: number;
+          _notes?: string;
+        };
+        Returns: string;
+      };
       request_payout_change: {
         Args: {
           _details: Json;
+        };
+        Returns: string;
+      };
+      save_delivery_zone: {
+        Args: {
+          _id: string;
+          _name: string;
+          _states: string[];
         };
         Returns: string;
       };
@@ -1833,12 +2157,30 @@ export type Database = {
           _order_id: string;
           _lines: Json;
           _expires_in_hours: number;
+          _snapshot: Json;
           _weight_grams?: number;
           _internal_notes?: string;
           _corridor_id?: string;
           _confirm_over_budget?: boolean;
+          _dimensions?: Json;
         };
         Returns: string;
+      };
+      set_fx_override: {
+        Args: {
+          _base: string;
+          _quote: string;
+          _rate: number;
+        };
+        Returns: string;
+      };
+      set_fx_spread: {
+        Args: {
+          _base: string;
+          _quote: string;
+          _spread_percent: number;
+        };
+        Returns: undefined;
       };
       suspend_vendor: {
         Args: {
@@ -1846,6 +2188,14 @@ export type Database = {
           _note?: string;
         };
         Returns: undefined;
+      };
+      throttle_hit: {
+        Args: {
+          _bucket: string;
+          _limit: number;
+          _window_seconds: number;
+        };
+        Returns: boolean;
       };
       transition_order: {
         Args: {
@@ -1868,6 +2218,8 @@ export type Database = {
     };
     Enums: {
       dispute_status: "open" | "under_review" | "resolved_buyer" | "resolved_vendor" | "closed";
+      fee_calc_method: "flat" | "percent" | "per_kg";
+      fee_type: "service_fee" | "international_freight" | "clearing" | "last_mile" | "special_handling" | "insurance" | "fx_spread" | "payment_processing";
       ledger_entry_type: "payment_received" | "held" | "released_to_vendor" | "refunded_to_buyer" | "platform_fee" | "adjustment";
       order_status: "draft" | "quote_requested" | "quoted" | "quote_expired" | "awaiting_payment" | "paid" | "purchased" | "inspection_pending" | "inspection_approved" | "shipped" | "in_transit" | "arrived_destination" | "customs_cleared" | "out_for_delivery" | "delivered" | "disputed" | "refunded" | "cancelled";
       order_type: "catalog" | "link";
@@ -1894,6 +2246,8 @@ export const Constants = {
   public: {
     Enums: {
       dispute_status: ["open", "under_review", "resolved_buyer", "resolved_vendor", "closed"],
+      fee_calc_method: ["flat", "percent", "per_kg"],
+      fee_type: ["service_fee", "international_freight", "clearing", "last_mile", "special_handling", "insurance", "fx_spread", "payment_processing"],
       ledger_entry_type: ["payment_received", "held", "released_to_vendor", "refunded_to_buyer", "platform_fee", "adjustment"],
       order_status: ["draft", "quote_requested", "quoted", "quote_expired", "awaiting_payment", "paid", "purchased", "inspection_pending", "inspection_approved", "shipped", "in_transit", "arrived_destination", "customs_cleared", "out_for_delivery", "delivered", "disputed", "refunded", "cancelled"],
       order_type: ["catalog", "link"],

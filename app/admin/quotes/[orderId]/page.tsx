@@ -6,16 +6,17 @@ import { LinkPreviewCard } from "@/components/orders/link-preview-card";
 import { MessageThread } from "@/components/orders/message-thread";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { QuoteBreakdown } from "@/components/orders/quote-breakdown";
-import { QuoteBuilder, type BuilderLine } from "@/components/orders/quote-builder";
+import { QuoteBuilder, type BuilderInputs } from "@/components/orders/quote-builder";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireAdmin } from "@/lib/auth/session";
 import { isUuid } from "@/lib/catalog/shop-queries";
 import { formatMoney, minorToDecimalString } from "@/lib/money";
+import { computeMargin } from "@/lib/orders/margin";
+import { loadCalcOptions } from "@/lib/pricing/options";
 import { formatAge, formatDateTime } from "@/lib/orders/format";
 import { getAdminQuoteDetail } from "@/lib/orders/queries";
-import { STARTER_LINES, type QuoteLineType } from "@/lib/orders/quote-lines";
 
 export const metadata: Metadata = { title: "Admin: quote" };
 
@@ -26,22 +27,32 @@ export default async function AdminQuotePage({ params }: PageProps<"/admin/quote
 
   const detail = await getAdminQuoteDetail(orderId);
   if (!detail) notFound();
-  const { order, buyer, preview, store, recipient, quotes, messages, corridors, currency } = detail;
+  const { order, buyer, preview, store, recipient, quotes, messages, currency } = detail;
   if (order.order_type !== "link") notFound();
   if (!currency) throw new Error("The order's currency is missing.");
 
   const canQuote = order.status === "quote_requested" || order.status === "quoted";
   const waiting = quotes.find((quote) => quote.status === "sent") ?? null;
-  const digits = currency.minor_unit_digits;
 
-  const initialLines: BuilderLine[] = waiting
-    ? waiting.lines.map((line) => ({
-        type: line.line_type as QuoteLineType,
-        label: line.label,
-        amount: minorToDecimalString(line.amount_minor, digits),
-      }))
-    : STARTER_LINES.map((line) => ({ ...line }));
-  const initialExpiry = 48;
+  const options = await loadCalcOptions();
+  // A revision starts from what was entered for the last quote; the amounts are calculated again.
+  const last = quotes.find((quote) => quote.snapshot !== null)?.snapshot ?? null;
+  const initial: BuilderInputs = {
+    itemPrice: last
+      ? minorToDecimalString(
+          last.input.itemUnitPriceMinor,
+          options.context.currencies[last.input.itemCurrency] ?? 2,
+        )
+      : "",
+    itemCurrency: last?.input.itemCurrency ?? "",
+    categorySlug: last?.input.categorySlug ?? "",
+    weightGrams: last ? String(last.input.actualWeightGrams) : "",
+    length: last?.input.dimensionsCm ? String(last.input.dimensionsCm.length) : "",
+    width: last?.input.dimensionsCm ? String(last.input.dimensionsCm.width) : "",
+    height: last?.input.dimensionsCm ? String(last.input.dimensionsCm.height) : "",
+    specialHandling: last?.input.specialHandling ?? false,
+    corridorId: order.corridor_id ?? "",
+  };
 
   return (
     <div className="mx-auto grid max-w-3xl gap-5 px-4 py-8">
@@ -136,14 +147,16 @@ export default async function AdminQuotePage({ params }: PageProps<"/admin/quote
           <CardContent>
             <QuoteBuilder
               orderId={order.id}
-              currency={currency}
+              buyerCurrency={currency}
+              quantity={order.quantity}
+              destinationState={recipient?.state ?? ""}
               maxBudgetMinor={order.max_budget_minor}
               needsCorridor={order.corridor_id === null}
-              corridors={corridors}
+              corridors={options.corridors.map((corridor) => ({ id: corridor.id, name: corridor.name }))}
+              currencies={options.currencies}
+              categoryGroups={options.categoryGroups}
               isRevision={waiting !== null}
-              initialLines={initialLines}
-              initialExpiry={initialExpiry}
-              initialWeight={waiting?.weight_estimate_grams ? String(waiting.weight_estimate_grams) : ""}
+              initial={initial}
               initialNotes={waiting?.internal_notes ?? ""}
             />
           </CardContent>
@@ -179,6 +192,39 @@ export default async function AdminQuotePage({ params }: PageProps<"/admin/quote
                   </span>
                 </p>
                 <QuoteBreakdown lines={quote.lines} totalMinor={quote.total_minor} currency={currency} />
+                {quote.lines.some((line) => line.override) ? (
+                  <ul className="bg-muted grid gap-1 rounded-md px-3 py-2 text-xs">
+                    {quote.lines
+                      .filter((line) => line.override)
+                      .map((line) => (
+                        <li key={line.id} className="break-words">
+                          <Badge variant="outline">Overridden (admin only)</Badge> {line.label}:{" "}
+                          {line.override?.original_amount_minor === null
+                            ? "added by hand"
+                            : `calculated ${formatMoney(line.override?.original_amount_minor ?? 0, currency)}, sent ${formatMoney(line.amount_minor, currency)}`}
+                          . Reason: {line.override?.reason}
+                        </li>
+                      ))}
+                  </ul>
+                ) : null}
+                {quote.snapshot ? (
+                  <p className="text-muted-foreground text-xs">
+                    Platform revenue (admin only):{" "}
+                    {formatMoney(
+                      computeMargin(
+                        quote.lines.map((line) => ({
+                          type: line.line_type,
+                          amountMinor: line.amount_minor,
+                          override: line.override
+                            ? { originalAmountMinor: line.override.original_amount_minor }
+                            : null,
+                        })),
+                      ).revenueMinor,
+                      currency,
+                      { withCode: true },
+                    )}
+                  </p>
+                ) : null}
                 {quote.internal_notes ? (
                   <p className="bg-muted rounded-md px-3 py-2 text-xs break-words whitespace-pre-wrap">
                     Internal: {quote.internal_notes}

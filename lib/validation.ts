@@ -26,3 +26,24 @@ export function fieldErrorsFromIssues(issues: readonly z.core.$ZodIssue[]): Reco
   }
   return errors;
 }
+
+export const MAX_DIMENSION_CM = 1000;
+
+/** A box side in cm typed as text: empty means "not given", otherwise above 0 with up to 2 decimals. */
+export function optionalDimensionCm(label: string) {
+  return z
+    .string()
+    .default("")
+    .transform((value, ctx) => {
+      const text = value.trim();
+      if (text === "") return null;
+      if (!/^\d{1,4}(\.\d{1,2})?$/.test(text) || Number(text) <= 0 || Number(text) > MAX_DIMENSION_CM) {
+        ctx.addIssue({
+          code: "custom",
+          message: `${label} must be a number above 0 and up to ${MAX_DIMENSION_CM} cm, with at most 2 decimals.`,
+        });
+        return z.NEVER;
+      }
+      return Number(text);
+    });
+}

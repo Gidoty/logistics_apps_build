@@ -84,6 +84,9 @@ export function ProductForm({ options, initial, productId }: Props) {
       currency: text("currency"),
       stock: text("stock"),
       weightGrams: text("weightGrams"),
+      lengthCm: text("lengthCm"),
+      widthCm: text("widthCm"),
+      heightCm: text("heightCm"),
       corridorId: text("corridorId"),
       warrantyMonths: text("warrantyMonths"),
       requiresSpecialHandling: data.get("requiresSpecialHandling") === "on",
@@ -365,6 +368,36 @@ export function ProductForm({ options, initial, productId }: Props) {
           )}
         </Field>
       </div>
+
+      <fieldset className="grid gap-2">
+        <legend className="text-sm font-medium">Packed box size in cm (optional)</legend>
+        <div className="grid grid-cols-3 gap-3">
+          {(
+            [
+              ["lengthCm", "Length"],
+              ["widthCm", "Width"],
+              ["heightCm", "Height"],
+            ] as const
+          ).map(([name, label]) => (
+            <Field key={name} id={name} label={label} errors={errors[name]}>
+              {(describedBy, invalid) => (
+                <Input
+                  id={name}
+                  name={name}
+                  inputMode="decimal"
+                  defaultValue={initial[name]}
+                  aria-describedby={describedBy}
+                  aria-invalid={invalid}
+                />
+              )}
+            </Field>
+          ))}
+        </div>
+        <p className="text-muted-foreground text-xs">
+          Shipping is charged on the larger of the real weight and the box size, so a size gives buyers a more
+          accurate delivered price. Give all three sizes or leave them empty.
+        </p>
+      </fieldset>
 
       <Field
         id="corridorId"

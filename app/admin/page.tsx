@@ -12,6 +12,11 @@ const SECTIONS = [
     body: "Prepare and send quotes for link orders.",
   },
   {
+    href: "/admin/pricing",
+    title: "Pricing",
+    body: "Fee rules, duty rates, delivery zones and exchange rates.",
+  },
+  {
     href: "/admin/vendors",
     title: "Vendors",
     body: "Review applications, approve, reject or suspend vendors.",

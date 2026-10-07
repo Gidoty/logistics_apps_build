@@ -1,130 +1,63 @@
 import { describe, expect, it } from "vitest";
-import { createQuoteSchema, isOverBudget, sumLines } from "@/lib/orders/quote-lines";
+import { isOverBudget, sendQuoteInputSchema, sumLines } from "@/lib/orders/quote-lines";
+import { calculateLandedCost } from "@/lib/pricing/engine";
+import { chinaInput, fxRows, rules } from "./pricing-fixtures";
 import { createLinkOrderSchema } from "@/lib/orders/schemas";
 import { createThrottle } from "@/lib/security/throttle";
 import { normalizeNigerianPhone } from "@/lib/profile/phone";
 
 const ORDER = "11111111-1111-4111-8111-111111111111";
-const CORRIDOR = "33333333-3333-4333-8333-333333333333";
 
-const context = (overrides = {}) => ({
-  currencyDigits: 2,
-  maxBudgetMinor: null,
-  needsCorridor: false,
-  corridorIds: [CORRIDOR],
-  ...overrides,
-});
+describe("send quote input", () => {
+  const snapshot = calculateLandedCost(chinaInput(), rules(), fxRows()).snapshot;
+  const base = (extra = {}) => ({
+    orderId: ORDER,
+    snapshot: JSON.parse(JSON.stringify(snapshot)),
+    lines: [{ calcType: "item_price", label: "Item price", amount: "83333.33", reason: "" }],
+    expiresInHours: "48",
+    ...extra,
+  });
 
-const FIVE_LINES = [
-  { type: "item_price", label: "Phone", amount: "120.50" },
-  { type: "service_fee", label: "Service fee", amount: "10" },
-  { type: "international_freight", label: "Air freight", amount: "25.25" },
-  { type: "customs_estimate", label: "Duty estimate", amount: "15" },
-  { type: "last_mile_delivery", label: "Delivery to Port Harcourt", amount: "5.75" },
-];
-
-const base = (extra = {}) => ({
-  orderId: ORDER,
-  lines: FIVE_LINES,
-  expiresInHours: "48",
-  ...extra,
-});
-
-describe("quote schema", () => {
-  it("works out the total on the server, in minor units", () => {
-    const result = createQuoteSchema(context()).safeParse(base());
+  it("accepts a calculated quote and has no total field", () => {
+    const result = sendQuoteInputSchema.safeParse(base({ totalMinor: 1, total: "0.01" }));
     expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data.totalMinor).toBe(17650);
-      expect(result.data.lines).toHaveLength(5);
-      expect(sumLines(result.data.lines)).toBe(result.data.totalMinor);
-    }
-  });
-
-  it("ignores a total sent by the browser", () => {
-    const result = createQuoteSchema(context()).safeParse(base({ totalMinor: 1, total: "0.01" }));
-    expect(result.success && result.data.totalMinor).toBe(17650);
-  });
-
-  it("needs an item price line above zero", () => {
-    const lines = FIVE_LINES.map((line) => (line.type === "item_price" ? { ...line, amount: "0" } : line));
-    expect(createQuoteSchema(context()).safeParse(base({ lines })).success).toBe(false);
-    const noItem = FIVE_LINES.filter((line) => line.type !== "item_price");
-    expect(createQuoteSchema(context()).safeParse(base({ lines: noItem })).success).toBe(false);
-  });
-
-  it("checks line count, label, amount and type", () => {
-    const schema = createQuoteSchema(context());
-    expect(schema.safeParse(base({ lines: [] })).success).toBe(false);
-    expect(
-      schema.safeParse(base({ lines: Array(21).fill({ type: "item_price", label: "x", amount: "1" }) }))
-        .success,
-    ).toBe(false);
-    expect(schema.safeParse(base({ lines: [{ type: "item_price", label: "", amount: "5" }] })).success).toBe(
-      false,
-    );
-    expect(
-      schema.safeParse(base({ lines: [{ type: "item_price", label: "x", amount: "1.999" }] })).success,
-    ).toBe(false);
-    expect(
-      schema.safeParse(base({ lines: [{ type: "item_price", label: "x", amount: "abc" }] })).success,
-    ).toBe(false);
-    expect(schema.safeParse(base({ lines: [{ type: "bogus", label: "x", amount: "5" }] })).success).toBe(
-      false,
-    );
+    expect(result.success && "totalMinor" in result.data).toBe(false);
   });
 
   it("allows only 24, 48 or 72 hours", () => {
-    const schema = createQuoteSchema(context());
     for (const hours of ["24", 48, "72"])
-      expect(schema.safeParse(base({ expiresInHours: hours })).success).toBe(true);
+      expect(sendQuoteInputSchema.safeParse(base({ expiresInHours: hours })).success).toBe(true);
     for (const hours of ["12", "49", "0", "abc", "-1"])
-      expect(schema.safeParse(base({ expiresInHours: hours })).success).toBe(false);
+      expect(sendQuoteInputSchema.safeParse(base({ expiresInHours: hours })).success).toBe(false);
   });
 
-  it("reads the weight and internal notes", () => {
-    const schema = createQuoteSchema(context());
-    const ok = schema.safeParse(base({ weightGrams: "1500", internalNotes: "  call vendor " }));
-    expect(ok.success && ok.data.weightGrams).toBe(1500);
-    expect(ok.success && ok.data.internalNotes).toBe("call vendor");
-    expect(schema.safeParse(base({ weightGrams: "0" })).success).toBe(false);
-    expect(schema.safeParse(base({ weightGrams: "x" })).success).toBe(false);
-    const empty = schema.safeParse(base());
-    expect(empty.success && empty.data.weightGrams).toBeNull();
-    expect(empty.success && empty.data.internalNotes).toBeNull();
+  it("needs at least one line and refuses unknown line types", () => {
+    expect(sendQuoteInputSchema.safeParse(base({ lines: [] })).success).toBe(false);
+    expect(
+      sendQuoteInputSchema.safeParse(
+        base({ lines: [{ calcType: "bogus", label: "x", amount: "1", reason: "" }] }),
+      ).success,
+    ).toBe(false);
   });
 
-  it("requires the over-budget tick", () => {
-    const schema = createQuoteSchema(context({ maxBudgetMinor: 10000 }));
-    expect(schema.safeParse(base()).success).toBe(false);
-    expect(schema.safeParse(base({ confirmOverBudget: true })).success).toBe(true);
+  it("refuses a malformed snapshot", () => {
+    const broken = base();
+    broken.snapshot.input.quantity = 0;
+    expect(sendQuoteInputSchema.safeParse(broken).success).toBe(false);
+    expect(sendQuoteInputSchema.safeParse(base({ snapshot: { engine_version: "1" } })).success).toBe(false);
+  });
+
+  it("keeps the over-budget tick off by default and trims notes", () => {
+    const result = sendQuoteInputSchema.safeParse(base({ internalNotes: "  call vendor " }));
+    expect(result.success && result.data.confirmOverBudget).toBe(false);
+    expect(result.success && result.data.internalNotes).toBe("call vendor");
+  });
+
+  it("knows when a total is over the budget", () => {
     expect(isOverBudget(17650, 10000)).toBe(true);
     expect(isOverBudget(10000, 10000)).toBe(false);
     expect(isOverBudget(5, null)).toBe(false);
-  });
-
-  it("requires a valid corridor for an unknown store only", () => {
-    const schema = createQuoteSchema(context({ needsCorridor: true }));
-    expect(schema.safeParse(base()).success).toBe(false);
-    expect(schema.safeParse(base({ corridorId: "44444444-4444-4444-8444-444444444444" })).success).toBe(
-      false,
-    );
-    const ok = schema.safeParse(base({ corridorId: CORRIDOR }));
-    expect(ok.success && ok.data.corridorId).toBe(CORRIDOR);
-    const known = createQuoteSchema(context()).safeParse(base({ corridorId: CORRIDOR }));
-    expect(known.success && known.data.corridorId).toBeNull();
-  });
-
-  it("uses the currency's decimal places", () => {
-    const yen = createQuoteSchema(context({ currencyDigits: 0 })).safeParse(
-      base({ lines: [{ type: "item_price", label: "x", amount: "1200" }] }),
-    );
-    expect(yen.success && yen.data.totalMinor).toBe(1200);
-    expect(
-      createQuoteSchema(context({ currencyDigits: 0 })).safeParse(
-        base({ lines: [{ type: "item_price", label: "x", amount: "12.5" }] }),
-      ).success,
-    ).toBe(false);
+    expect(sumLines([{ amountMinor: 5 }, { amountMinor: 7 }])).toBe(12);
   });
 });
 

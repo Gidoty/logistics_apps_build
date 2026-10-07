@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { parseMoneyInput } from "@/lib/money";
-import { fieldErrorsFromIssues, wholeNumber } from "@/lib/validation";
+import { fieldErrorsFromIssues, optionalDimensionCm, wholeNumber } from "@/lib/validation";
 import { Constants, type Enums } from "@/lib/supabase/database.types";
 
 export type ProductCondition = Enums<"product_condition">;
@@ -37,6 +37,10 @@ export type ProductInput = {
   currency: string;
   stock: number;
   weightGrams: number;
+  /** Box size of one packed unit, all three or none. */
+  lengthCm: number | null;
+  widthCm: number | null;
+  heightCm: number | null;
   corridorId: string;
   warrantyMonths: number;
   requiresSpecialHandling: boolean;
@@ -97,6 +101,9 @@ export function createProductSchema(context: ProductFormContext) {
       currency: z.string().refine((value) => Object.hasOwn(context.currencies, value), "Choose a currency."),
       stock: wholeNumber("Stock", 0, 1_000_000),
       weightGrams: wholeNumber("Weight", 1, 500_000),
+      lengthCm: optionalDimensionCm("Length"),
+      widthCm: optionalDimensionCm("Width"),
+      heightCm: optionalDimensionCm("Height"),
       corridorId: z
         .string()
         .refine((value) => context.corridorIds.includes(value), "Choose a shipping route."),
@@ -116,7 +123,16 @@ export function createProductSchema(context: ProductFormContext) {
           message: "Describe the condition (at least 10 characters), for example scratches or missing parts.",
         });
       }
-      if (!price.ok) return z.NEVER;
+      const sizes = [data.lengthCm, data.widthCm, data.heightCm];
+      const given = sizes.filter((size) => size !== null).length;
+      if (given !== 0 && given !== 3) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["lengthCm"],
+          message: "Give all three sizes (length, width, height) or leave all three empty.",
+        });
+      }
+      if (!price.ok || (given !== 0 && given !== 3)) return z.NEVER;
 
       return {
         title: data.title,
@@ -129,6 +145,9 @@ export function createProductSchema(context: ProductFormContext) {
         currency: data.currency,
         stock: data.stock,
         weightGrams: data.weightGrams,
+        lengthCm: data.lengthCm,
+        widthCm: data.widthCm,
+        heightCm: data.heightCm,
         corridorId: data.corridorId,
         warrantyMonths: data.warrantyMonths,
         requiresSpecialHandling: data.requiresSpecialHandling,

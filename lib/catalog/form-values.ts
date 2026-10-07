@@ -14,6 +14,9 @@ export type ProductFormValues = {
   currency: string;
   stock: string;
   weightGrams: string;
+  lengthCm: string;
+  widthCm: string;
+  heightCm: string;
   corridorId: string;
   warrantyMonths: string;
   requiresSpecialHandling: boolean;
@@ -32,6 +35,9 @@ export function emptyProductValues(currency: string, corridorId: string): Produc
     currency,
     stock: "1",
     weightGrams: "",
+    lengthCm: "",
+    widthCm: "",
+    heightCm: "",
     corridorId,
     warrantyMonths: "0",
     requiresSpecialHandling: false,
@@ -61,6 +67,9 @@ export function productToFormValues(
     | "currency"
     | "stock"
     | "weight_grams"
+    | "length_cm"
+    | "width_cm"
+    | "height_cm"
     | "corridor_id"
     | "warranty_months"
     | "requires_special_handling"
@@ -80,6 +89,9 @@ export function productToFormValues(
     currency: product.currency,
     stock: String(product.stock),
     weightGrams: product.weight_grams === null ? "" : String(product.weight_grams),
+    lengthCm: product.length_cm === null ? "" : String(product.length_cm),
+    widthCm: product.width_cm === null ? "" : String(product.width_cm),
+    heightCm: product.height_cm === null ? "" : String(product.height_cm),
     corridorId: product.corridor_id,
     warrantyMonths: String(product.warranty_months),
     requiresSpecialHandling: product.requires_special_handling,

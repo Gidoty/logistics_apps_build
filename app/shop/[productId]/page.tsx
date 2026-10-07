@@ -10,6 +10,14 @@ import { formatStock, formatTransitDays, formatWarranty } from "@/lib/catalog/fo
 import { CONDITION_LABELS } from "@/lib/catalog/schemas";
 import { getShopProduct, getShopReferences } from "@/lib/catalog/shop-queries";
 import { formatMoney } from "@/lib/money";
+import { CurrencySwitcher } from "@/components/shop/currency-switcher";
+import { DeliveredEstimate } from "@/components/shop/delivered-estimate";
+import { Label } from "@/components/ui/label";
+import { NativeSelect } from "@/components/ui/native-select";
+import { CUSTOMS_DISCLAIMER } from "@/lib/pricing/types";
+import { DEFAULT_ESTIMATE_STATE, getProductEstimate } from "@/lib/pricing/shop-estimate";
+import { getViewerCurrency } from "@/lib/pricing/viewer-currency-read";
+import { listRegionNames } from "@/lib/recipients/queries";
 
 export async function generateMetadata({ params }: PageProps<"/shop/[productId]">): Promise<Metadata> {
   const product = await getShopProduct((await params).productId);
@@ -23,10 +31,20 @@ export async function generateMetadata({ params }: PageProps<"/shop/[productId]"
   };
 }
 
-export default async function ProductPage({ params }: PageProps<"/shop/[productId]">) {
+export default async function ProductPage({ params, searchParams }: PageProps<"/shop/[productId]">) {
   const { productId } = await params;
-  const [product, refs] = await Promise.all([getShopProduct(productId), getShopReferences()]);
+  const [product, refs, query, viewer, states] = await Promise.all([
+    getShopProduct(productId),
+    getShopReferences(),
+    searchParams,
+    getViewerCurrency(),
+    listRegionNames("NG"),
+  ]);
   if (!product) notFound();
+
+  const requestedState = typeof query.state === "string" ? query.state : "";
+  const state = states.includes(requestedState) ? requestedState : DEFAULT_ESTIMATE_STATE;
+  const estimate = await getProductEstimate(product.id, viewer.currency.code, state);
 
   const currency = refs.currencies.find((item) => item.code === product.currency);
   const countryName = (code: string) => refs.countries.find((country) => country.code === code)?.name ?? code;
@@ -87,6 +105,41 @@ export default async function ProductPage({ params }: PageProps<"/shop/[productI
             Final delivered price, including shipping and customs, is shown before you pay.
           </p>
         </div>
+
+        <section aria-labelledby="estimate-heading" className="grid gap-3 rounded-lg border p-3">
+          <h2 id="estimate-heading" className="sr-only">
+            Estimated delivered price
+          </h2>
+          <DeliveredEstimate
+            estimate={estimate}
+            currencies={viewer.options}
+            className="text-lg [&_span:last-child]:text-xl [&_span:last-child]:font-bold"
+          />
+          {estimate.ok ? (
+            <p className="text-muted-foreground text-xs">
+              To {state}. Includes shipping, handling, delivery and payment fees.
+              {estimate.hasCustomsEstimate ? ` ${CUSTOMS_DISCLAIMER}` : ""}
+            </p>
+          ) : null}
+          <form method="get" className="flex flex-wrap items-end gap-2">
+            <div className="grid gap-1">
+              <Label htmlFor="state" className="text-xs">
+                Deliver to
+              </Label>
+              <NativeSelect id="state" name="state" defaultValue={state} className="h-9 w-auto min-w-40">
+                {states.map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </NativeSelect>
+            </div>
+            <Button type="submit" variant="outline" size="sm">
+              Update
+            </Button>
+          </form>
+          <CurrencySwitcher current={viewer.currency.code} options={viewer.options} />
+        </section>
 
         <div className="flex flex-wrap items-center gap-2">
           <ConditionBadge condition={product.condition} showNew />

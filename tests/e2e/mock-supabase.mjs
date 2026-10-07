@@ -6,7 +6,7 @@
  * NOT apply filters the way Postgres does: database behavior is covered by
  * tests/db. Here the goal is layout, weight, speed and request construction.
  *
- * Control endpoints: GET /__requests, POST /__reset, POST /__mode {products, delayMs}.
+ * Control endpoints: GET /__requests, POST /__reset, POST /__mode {products, delayMs, fxAgeHours, throttleBlocked}.
  */
 import http from "node:http";
 
@@ -68,6 +68,9 @@ const base = {
   category: "phones",
   condition_notes: null,
   weight_grams: 300,
+  length_cm: null,
+  width_cm: null,
+  height_cm: null,
   warranty_months: 12,
   requires_special_handling: false,
   specs: { RAM: "6 GB", Storage: "128 GB" },
@@ -185,8 +188,167 @@ const BRANDS = [...new Set(PRODUCTS.map((p) => p.brand))].sort().map((brand) => 
   product_count: PRODUCTS.filter((p) => p.brand === brand).length,
 }));
 
+// --- Pricing data (mirrors the placeholder seed) ---------------------------
+const NG_STATES_A = ["Lagos", "Federal Capital Territory", "Rivers"];
+const NG_STATES_B = [
+  "Abia",
+  "Akwa Ibom",
+  "Anambra",
+  "Bayelsa",
+  "Cross River",
+  "Delta",
+  "Ebonyi",
+  "Edo",
+  "Ekiti",
+  "Enugu",
+  "Imo",
+  "Ogun",
+  "Ondo",
+  "Osun",
+  "Oyo",
+];
+const NG_STATES_ALL = [
+  "Abia",
+  "Adamawa",
+  "Akwa Ibom",
+  "Anambra",
+  "Bauchi",
+  "Bayelsa",
+  "Benue",
+  "Borno",
+  "Cross River",
+  "Delta",
+  "Ebonyi",
+  "Edo",
+  "Ekiti",
+  "Enugu",
+  "Federal Capital Territory",
+  "Gombe",
+  "Imo",
+  "Jigawa",
+  "Kaduna",
+  "Kano",
+  "Katsina",
+  "Kebbi",
+  "Kogi",
+  "Kwara",
+  "Lagos",
+  "Nasarawa",
+  "Niger",
+  "Ogun",
+  "Ondo",
+  "Osun",
+  "Oyo",
+  "Plateau",
+  "Rivers",
+  "Sokoto",
+  "Taraba",
+  "Yobe",
+  "Zamfara",
+];
+const ZONE_A = id("e1", 1);
+const ZONE_B = id("e1", 2);
+const ZONE_C = id("e1", 3);
+const ZONES = [
+  { id: ZONE_A, name: "Zone A", states: NG_STATES_A },
+  { id: ZONE_B, name: "Zone B", states: NG_STATES_B },
+  {
+    id: ZONE_C,
+    name: "Zone C",
+    states: NG_STATES_ALL.filter((s) => !NG_STATES_A.includes(s) && !NG_STATES_B.includes(s)),
+  },
+];
+let ruleCounter = 0;
+const RULE = (corridor, fee_type, calc_method, value, currency, extra = {}) => ({
+  id: id("e2", ++ruleCounter),
+  corridor_id: corridor,
+  fee_type,
+  calc_method,
+  value,
+  currency,
+  min_amount_minor: null,
+  max_amount_minor: null,
+  weight_from_g: null,
+  weight_to_g: null,
+  category_slug: null,
+  zone_id: null,
+  effective_from: "2026-01-01T00:00:00+00:00",
+  effective_to: null,
+  notes: null,
+  ...extra,
+});
+const BANDS = [
+  [0, 5000],
+  [5000, 20000],
+  [20000, 100000],
+];
+const LAST_MILE = {
+  [ZONE_A]: [250000, 400000, 900000],
+  [ZONE_B]: [350000, 550000, 1200000],
+  [ZONE_C]: [450000, 700000, 1500000],
+};
+const lastMile = (corridor) =>
+  Object.entries(LAST_MILE).flatMap(([zone, values]) =>
+    BANDS.map(([from, to], i) =>
+      RULE(corridor, "last_mile", "flat", values[i], "NGN", {
+        zone_id: zone,
+        weight_from_g: from,
+        weight_to_g: to,
+      }),
+    ),
+  );
+const FEE_RULES = [
+  RULE(CN, "service_fee", "percent", 5, "NGN", { min_amount_minor: 200000 }),
+  RULE(CN, "international_freight", "per_kg", 900, "USD", {
+    min_amount_minor: 900,
+    weight_from_g: 0,
+    weight_to_g: 5000,
+  }),
+  RULE(CN, "international_freight", "per_kg", 800, "USD", { weight_from_g: 5000, weight_to_g: 20000 }),
+  RULE(CN, "international_freight", "per_kg", 650, "USD", { weight_from_g: 20000, weight_to_g: 100000 }),
+  RULE(CN, "insurance", "percent", 1, "USD"),
+  RULE(CN, "clearing", "flat", 500000, "NGN"),
+  RULE(CN, "special_handling", "flat", 300000, "NGN"),
+  RULE(CN, "payment_processing", "percent", 1.5, "NGN", { max_amount_minor: 200000 }),
+  RULE(CN, "payment_processing", "flat", 10000, "NGN"),
+  ...lastMile(CN),
+  RULE(NG, "service_fee", "percent", 5, "NGN", { min_amount_minor: 100000 }),
+  RULE(NG, "special_handling", "flat", 300000, "NGN"),
+  RULE(NG, "payment_processing", "percent", 1.5, "NGN", { max_amount_minor: 200000 }),
+  RULE(NG, "payment_processing", "flat", 10000, "NGN"),
+  ...lastMile(NG),
+];
+const DUTY_RATES = [
+  [null, 20],
+  ["electronics", 10],
+  ["phones", 5],
+].map(([category_slug, duty], i) => ({
+  id: id("e3", i + 1),
+  corridor_id: CN,
+  category_slug,
+  import_duty_percent: duty,
+  vat_percent: 7.5,
+  other_levies_percent: 4,
+  effective_from: "2026-01-01T00:00:00+00:00",
+  effective_to: null,
+  notes: "PLACEHOLDER",
+}));
+const FX_RATES_PER_USD = { NGN: 1500, GBP: 0.8, CNY: 7.2, CAD: 1.35, EUR: 0.92 };
+const fxRows = () =>
+  Object.entries(FX_RATES_PER_USD).map(([quote, rate], i) => ({
+    id: id("e4", i + 1),
+    base_currency: "USD",
+    quote_currency: quote,
+    rate,
+    source: "mock",
+    is_override: false,
+    ended_at: null,
+    fetched_at: new Date(Date.now() - mode.fxAgeHours * 3_600_000).toISOString(),
+    spread_percent: 1.5,
+  }));
+
 let requests = [];
-let mode = { products: "normal", delayMs: 0 };
+let mode = { products: "normal", delayMs: 0, fxAgeHours: 1, throttleBlocked: false };
 
 function eq(url, column) {
   const value = url.searchParams.get(column);
@@ -212,7 +374,7 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/__requests") return respond(res, 200, requests);
   if (url.pathname === "/__reset") {
     requests = [];
-    mode = { products: "normal", delayMs: 0 };
+    mode = { products: "normal", delayMs: 0, fxAgeHours: 1, throttleBlocked: false };
     return respond(res, 200, {});
   }
   if (url.pathname === "/__mode") {
@@ -281,6 +443,23 @@ const server = http.createServer(async (req, res) => {
       return list(res, COUNTRIES, false, false);
     case "categories":
       return list(res, CATEGORIES, false, false);
+    case "rpc/throttle_hit":
+      return respond(res, 200, !mode.throttleBlocked);
+    case "fee_rules":
+      return list(res, FEE_RULES, false, false);
+    case "duty_rates":
+      return list(res, DUTY_RATES, false, false);
+    case "delivery_zones":
+      return list(res, ZONES, false, false);
+    case "regions":
+      return list(
+        res,
+        NG_STATES_ALL.map((name) => ({ name })),
+        false,
+        false,
+      );
+    case "fx_rates":
+      return list(res, fxRows(), false, false);
     case "shop_brands":
       return list(res, BRANDS, false, false);
     default:

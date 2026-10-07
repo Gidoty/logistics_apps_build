@@ -93,15 +93,19 @@ describe.skipIf(!DATABASE_URL)("database: link orders, quotes and the state mach
     } = {},
   ): Promise<string> {
     await h.actAs(admin);
-    const { rows } = await h.query("select public.send_quote($1, $2::jsonb, $3, $4, $5, $6, $7) as id", [
-      orderId,
-      JSON.stringify(options.lines ?? LINES),
-      options.hours ?? 48,
-      options.weight === undefined ? 1200 : options.weight,
-      options.notes === undefined ? null : options.notes,
-      options.corridor === undefined ? null : options.corridor,
-      options.confirm ?? false,
-    ]);
+    const { rows } = await h.query(
+      "select public.send_quote($1, $2::jsonb, $3, $8::jsonb, $4, $5, $6, $7) as id",
+      [
+        orderId,
+        JSON.stringify(options.lines ?? LINES),
+        options.hours ?? 48,
+        options.weight === undefined ? 1200 : options.weight,
+        options.notes === undefined ? null : options.notes,
+        options.corridor === undefined ? null : options.corridor,
+        options.confirm ?? false,
+        JSON.stringify({ engine_version: "test" }),
+      ],
+    );
     return rows[0].id;
   }
 
@@ -753,9 +757,9 @@ describe.skipIf(!DATABASE_URL)("database: link orders, quotes and the state mach
         const orderId = await linkOrder(buyerA);
         const item = { type: "item_price", label: "Phone", amount_minor: 1000 };
         const bad: [string, unknown, RegExp][] = [
-          ["no lines", [], /between 1 and 20/],
+          ["no lines", [], /between 1 and 30/],
           ["not a list", { type: "item_price" }, /needs line items/],
-          ["21 lines", Array.from({ length: 21 }, () => item), /between 1 and 20/],
+          ["31 lines", Array.from({ length: 31 }, () => item), /between 1 and 30/],
           ["unknown type", [item, { type: "discount", label: "x", amount_minor: 1 }], /unknown type/],
           ["negative amount", [item, { type: "other", label: "x", amount_minor: -5 }], /invalid amount/],
           ["fractional amount", [item, { type: "other", label: "x", amount_minor: 1.5 }], /invalid amount/],
@@ -777,7 +781,7 @@ describe.skipIf(!DATABASE_URL)("database: link orders, quotes and the state mach
         for (const [name, lines, pattern] of bad) {
           await h.actAs(admin);
           await h.expectError(
-            "select public.send_quote($1, $2::jsonb, 48, null, null, null, false)",
+            "select public.send_quote($1, $2::jsonb, 48, jsonb_build_object('engine_version', 'test'), null, null, null, false)",
             [orderId, JSON.stringify(lines)],
             pattern,
           );
@@ -786,7 +790,7 @@ describe.skipIf(!DATABASE_URL)("database: link orders, quotes and the state mach
         for (const hours of [0, 12, 47, 49, 96]) {
           await h.actAs(admin);
           await h.expectError(
-            "select public.send_quote($1, $2::jsonb, $3, null, null, null, false)",
+            "select public.send_quote($1, $2::jsonb, $3, jsonb_build_object('engine_version', 'test'), null, null, null, false)",
             [orderId, JSON.stringify([item]), hours],
             /24, 48 or 72/,
           );
@@ -794,7 +798,7 @@ describe.skipIf(!DATABASE_URL)("database: link orders, quotes and the state mach
         for (const weight of [0, -1, 500001]) {
           await h.actAs(admin);
           await h.expectError(
-            "select public.send_quote($1, $2::jsonb, 48, $3, null, null, false)",
+            "select public.send_quote($1, $2::jsonb, 48, jsonb_build_object('engine_version', 'test'), $3, null, null, false)",
             [orderId, JSON.stringify([item]), weight],
             /weight estimate/,
           );
@@ -824,7 +828,7 @@ describe.skipIf(!DATABASE_URL)("database: link orders, quotes and the state mach
         const orderId = await linkOrder(buyerA, { budget: 15_000_000 });
         await h.actAs(admin);
         await h.expectError(
-          "select public.send_quote($1, $2::jsonb, 48, null, null, null, false)",
+          "select public.send_quote($1, $2::jsonb, 48, jsonb_build_object('engine_version', 'test'), null, null, null, false)",
           [orderId, JSON.stringify(LINES)],
           /over the buyer's budget/,
         );
@@ -953,14 +957,14 @@ describe.skipIf(!DATABASE_URL)("database: link orders, quotes and the state mach
         for (const who of [buyerA, buyerB]) {
           await h.actAs(who);
           await h.expectError(
-            "select public.send_quote($1, $2::jsonb, 48, null, null, null, false)",
+            "select public.send_quote($1, $2::jsonb, 48, jsonb_build_object('engine_version', 'test'), null, null, null, false)",
             [orderId, JSON.stringify(LINES)],
             /Only admins/,
           );
         }
         await h.actAs("anon");
         await h.expectError(
-          "select public.send_quote($1, $2::jsonb, 48, null, null, null, false)",
+          "select public.send_quote($1, $2::jsonb, 48, jsonb_build_object('engine_version', 'test'), null, null, null, false)",
           [orderId, JSON.stringify(LINES)],
           PERMISSION_DENIED,
         );
@@ -977,7 +981,7 @@ describe.skipIf(!DATABASE_URL)("database: link orders, quotes and the state mach
         for (const id of [catalog.rows[0].id, cancelled.rows[0].id]) {
           await h.actAs(admin);
           await h.expectError(
-            "select public.send_quote($1, $2::jsonb, 48, null, null, null, false)",
+            "select public.send_quote($1, $2::jsonb, 48, jsonb_build_object('engine_version', 'test'), null, null, null, false)",
             [id, JSON.stringify(LINES)],
             /not waiting for a quote/,
           );
@@ -1077,7 +1081,7 @@ describe.skipIf(!DATABASE_URL)("database: link orders, quotes and the state mach
         const orderId = await linkOrder(buyerA, { url: "https://www.some-new-store.com/item/1" });
         await h.actAs(admin);
         await h.expectError(
-          "select public.send_quote($1, $2::jsonb, 48, null, null, null, false)",
+          "select public.send_quote($1, $2::jsonb, 48, jsonb_build_object('engine_version', 'test'), null, null, null, false)",
           [orderId, JSON.stringify(LINES)],
           /Choose the shipping route/,
         );
@@ -1085,7 +1089,7 @@ describe.skipIf(!DATABASE_URL)("database: link orders, quotes and the state mach
         await h.query("update public.corridors set active = false where id = $1", [cnNg]);
         await h.actAs(admin);
         await h.expectError(
-          "select public.send_quote($1, $2::jsonb, 48, null, null, $3, false)",
+          "select public.send_quote($1, $2::jsonb, 48, jsonb_build_object('engine_version', 'test'), null, null, $3, false)",
           [orderId, JSON.stringify(LINES), cnNg],
           /Choose the shipping route/,
         );

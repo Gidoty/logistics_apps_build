@@ -19,6 +19,7 @@ Decisions already made are in `docs/DECISIONS.md`. Do not re-ask them.
 - Money-moving state changes (order status, ledger, payouts) go through server code, never direct client writes.
 - Order status changes only through `transition_order()` (SQL) or `transitionOrder()` (`lib/orders/state-machine.ts`). Never update `orders.status` directly. Orders are created only by SQL functions, never by direct inserts.
 - Anything that fetches a URL on a visitor's behalf goes through `lib/security/safe-fetch.ts`.
+- Pricing rules and duty rates are never edited: change a rate with `replace_fee_rule` / `replace_duty_rate` (admin pricing page). The engine in `lib/pricing` stays pure (no database, no clock); a loader feeds it. A quote needs its pricing snapshot, and never quote on a stale exchange rate.
 - Business logic in `lib/<domain>`. Components in `components/` are UI only.
 - Zod on every input. TypeScript strict, no `any` without a comment explaining why.
 - Rates, fees, duty estimates and FX overrides come from the database. Never hardcode them.

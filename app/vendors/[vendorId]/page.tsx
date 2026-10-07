@@ -5,6 +5,8 @@ import { ProductGrid } from "@/components/shop/product-grid";
 import { Badge } from "@/components/ui/badge";
 import { pageCount } from "@/lib/catalog/format";
 import { SHOP_PAGE_SIZE } from "@/lib/catalog/shop-params";
+import { estimateProducts } from "@/lib/pricing/shop-estimate";
+import { getViewerCurrency } from "@/lib/pricing/viewer-currency-read";
 import { getShopReferences, getShopVendor, listVendorShopProducts } from "@/lib/catalog/shop-queries";
 
 export async function generateMetadata({ params }: PageProps<"/vendors/[vendorId]">): Promise<Metadata> {
@@ -21,6 +23,8 @@ export default async function VendorPage({ params, searchParams }: PageProps<"/v
   const [vendor, refs] = await Promise.all([getShopVendor(vendorId), getShopReferences()]);
   if (!vendor) notFound();
   const { products, total } = await listVendorShopProducts(vendor.id, page, refs);
+  const viewer = await getViewerCurrency();
+  const estimates = await estimateProducts(products, viewer.currency.code);
 
   const countryName =
     refs.countries.find((country) => country.code === vendor.country_code)?.name ?? vendor.country_code;
@@ -49,7 +53,13 @@ export default async function VendorPage({ params, searchParams }: PageProps<"/v
           <p className="text-muted-foreground text-sm">
             {total} {total === 1 ? "product" : "products"}
           </p>
-          <ProductGrid products={products} currencies={refs.currencies} countryNames={countryNames} />
+          <ProductGrid
+            products={products}
+            currencies={refs.currencies}
+            countryNames={countryNames}
+            estimates={estimates}
+            viewerCurrencies={viewer.options}
+          />
           <Pagination
             page={page}
             pageCount={pageCount(total, SHOP_PAGE_SIZE)}

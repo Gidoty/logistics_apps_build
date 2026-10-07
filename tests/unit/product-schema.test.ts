@@ -53,6 +53,9 @@ describe("product schema: valid input", () => {
       currency: "CNY",
       stock: 5,
       weightGrams: 250,
+      lengthCm: null,
+      widthCm: null,
+      heightCm: null,
       corridorId: CORRIDOR,
       warrantyMonths: 12,
       requiresSpecialHandling: false,
@@ -194,5 +197,29 @@ describe("product schema: specs", () => {
     expect(errorsFor({ specs: many }).specs).toBeDefined();
     expect(errorsFor({ specs: [{ key: "k".repeat(41), value: "x" }] }).specs).toBeDefined();
     expect(errorsFor({ specs: [{ key: "k", value: "v".repeat(101) }] }).specs).toBeDefined();
+  });
+});
+
+describe("product schema: box size", () => {
+  const schema = createProductSchema(context);
+
+  it("accepts all three sizes, or none", () => {
+    expect(schema.parse({ ...valid, lengthCm: "30", widthCm: "20.5", heightCm: "10" })).toMatchObject({
+      lengthCm: 30,
+      widthCm: 20.5,
+      heightCm: 10,
+    });
+    expect(schema.parse({ ...valid })).toMatchObject({ lengthCm: null, widthCm: null, heightCm: null });
+  });
+
+  it.each([
+    ["only one size", { lengthCm: "30" }],
+    ["two sizes", { lengthCm: "30", widthCm: "20" }],
+    ["zero", { lengthCm: "0", widthCm: "20", heightCm: "10" }],
+    ["too many decimals", { lengthCm: "30.123", widthCm: "20", heightCm: "10" }],
+    ["too large", { lengthCm: "1001", widthCm: "20", heightCm: "10" }],
+    ["text", { lengthCm: "big", widthCm: "20", heightCm: "10" }],
+  ])("rejects %s", (_name, extra) => {
+    expect(schema.safeParse({ ...valid, ...extra }).success).toBe(false);
   });
 });

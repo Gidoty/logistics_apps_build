@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
 import type { Tables } from "@/lib/supabase/database.types";
+import type { PricingSnapshot } from "@/lib/pricing/types";
 import { linkPreviewSchema, type LinkPreview } from "./link-preview";
 
 /** Reads the saved preview back safely. Anything unexpected in the column counts as no preview. */
@@ -188,9 +189,11 @@ export type AdminQuoteDetail = {
   store: { display_name: string; supported: boolean } | null;
   recipient: OwnOrderDetail["recipient"];
   quotes: (QuoteSummary & {
-    lines: QuoteLineRow[];
+    lines: (QuoteLineRow & { override: { reason: string; original_amount_minor: number | null } | null })[];
     weight_estimate_grams: number | null;
     internal_notes: string | null;
+    /** What the pricing engine used. Admin only. */
+    snapshot: PricingSnapshot | null;
   })[];
   messages: MessageRow[];
   corridors: { id: string; name: string }[];
@@ -207,8 +210,10 @@ export async function getAdminQuoteDetail(orderId: string): Promise<AdminQuoteDe
        recipient:recipients(full_name, phone, address_line, city, state, landmark, email),
        store:store_domains(display_name, supported),
        quotes(id, status, total_minor, currency, expires_at, version, accepted_at, created_at, weight_estimate_grams,
-              lines:quote_lines(id, line_type, label, amount_minor, currency, sort_order),
-              notes:quote_internal_notes(notes))`,
+              lines:quote_lines(id, line_type, label, amount_minor, currency, sort_order,
+                                override:quote_line_overrides(reason, original_amount_minor)),
+              notes:quote_internal_notes(notes),
+              pricing:quote_pricing_snapshots(snapshot))`,
     )
     .eq("id", orderId)
     .maybeSingle();
@@ -235,10 +240,11 @@ export async function getAdminQuoteDetail(orderId: string): Promise<AdminQuoteDe
     recipient,
     quotes: [...quotes]
       .sort((a, b) => b.version - a.version)
-      .map(({ notes, lines, ...quote }) => ({
+      .map(({ notes, lines, pricing, ...quote }) => ({
         ...quote,
         lines: [...lines].sort((a, b) => a.sort_order - b.sort_order),
         internal_notes: notes?.notes ?? null,
+        snapshot: pricing ? (pricing.snapshot as unknown as PricingSnapshot) : null,
       })),
     messages,
     corridors: corridors.data,

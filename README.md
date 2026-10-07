@@ -25,7 +25,8 @@ Next.js 16 (App Router, TypeScript strict), Tailwind CSS v4 with shadcn/ui, Supa
    The migrations also create two storage buckets with their access rules: `product-images` (public read) and `vendor-documents` (private).
 4. In the dashboard, Auth > URL Configuration: set Site URL to `http://localhost:3000` (or your deployed URL) and add `http://localhost:3000/auth/callback` to Redirect URLs.
 5. Run: `npm run dev` and open http://localhost:3000.
-6. Quote expiry runs every 15 minutes through pg_cron. In the dashboard open Database > Extensions and enable `pg_cron`, then run `supabase/cron.sql` in the SQL editor and check `select jobname, schedule, active from cron.job;`. Expiry is also checked whenever a quote is opened or accepted, so nothing breaks while the job is off, but order statuses only change to "Quote expired" on those checks.
+6. Exchange rates: set `CRON_SECRET` (a long random value, for example `openssl rand -hex 32`) in `.env.local` and in Vercel. `vercel.json` calls `/api/cron/fx` every 6 hours and Vercel sends the secret as `Authorization: Bearer <value>`. After the first deploy, call it once so quotes can start: `curl -H "Authorization: Bearer $CRON_SECRET" https://<your-app>/api/cron/fx`. Vercel's free Hobby plan allows a cron job only once a day, so a 6-hour schedule needs the Pro plan. On Hobby, enable `pg_cron` and `pg_net` in Supabase and have them call the same URL with the same header, or use any external scheduler. Fetched rates older than 24 hours stop quotes and estimates until fresh rates arrive or an admin sets an override.
+7. Quote expiry runs every 15 minutes through pg_cron. In the dashboard open Database > Extensions and enable `pg_cron`, then run `supabase/cron.sql` in the SQL editor and check `select jobname, schedule, active from cron.job;`. Expiry is also checked whenever a quote is opened or accepted, so nothing breaks while the job is off, but order statuses only change to "Quote expired" on those checks.
 
 ## Setup with local Supabase (Docker)
 
@@ -79,11 +80,18 @@ DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npx vitest 
 Signed-in browser tests run when these are set (existing, confirmed accounts):
 `E2E_BUYER_EMAIL`, `E2E_BUYER_PASSWORD`, `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD`.
 
+## Pricing
+
+- Admin: `/admin/pricing` (fee rules, duty rates, delivery zones, exchange rates, test calculation). Changing a rate closes the old rule and starts a new one.
+- Everyone: `/estimate` (delivered-price estimator, no login), and "Est. delivered" on shop cards and product pages.
+- The values seeded by `supabase/seed.sql` are PLACEHOLDERS. Replace them before taking payments, and verify customs rates with a licensed customs broker.
+- Engine: `lib/pricing` (pure, BigInt). Exchange rates: `lib/fx`. Rule changes and new rates clear the price cache.
+
 ## Link orders ("Buy it for me")
 
 - Buyer: `/order/link` (request), `/account/orders` and `/account/orders/<id>` (status, quote, messages), `/account/recipients` (address book).
 - Admin: `/admin/quotes` (queue, oldest first) and `/admin/quotes/<id>` (quote builder).
-- Manual test of an expired quote on a local database: `supabase/dev/backdate-quote.sql`.
+- Manual test of an expired quote on a local database: `supabase/dev/backdate-quote.sql`. To age the exchange rates for the stale-rate check: `supabase/dev/age-fx-rates.sql`.
 - The app server needs `SUPABASE_SERVICE_ROLE_KEY` at runtime (set it in Vercel as well).
 
 ## Project layout
@@ -109,6 +117,7 @@ tests/e2e             Playwright tests
 | ------------ | -------------------------------------------- |
 | `/account/*` | any logged-in user                           |
 | `/order/*`   | any logged-in user                           |
+| `/estimate`  | everyone                                     |
 | `/vendor/*`  | role `vendor` with an approved vendor record |
 | `/admin/*`   | role `admin`                                 |
 

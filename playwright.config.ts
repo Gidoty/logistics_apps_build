@@ -47,6 +47,9 @@ export default defineConfig({
             NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${MOCK_PORT}`,
             NEXT_PUBLIC_SUPABASE_ANON_KEY: "mock-anon-key",
             NEXT_PUBLIC_APP_URL: baseURL,
+            // The pricing loader reads rule tables with the service role. The fake server accepts any key.
+            SUPABASE_SERVICE_ROLE_KEY: "mock-service-role-key-0123456789",
+            CRON_SECRET: "e2e-cron-secret-0123456789",
           },
         },
       ]

@@ -1,6 +1,7 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
+import { productEstimateTag } from "@/lib/pricing/cache-tags";
 import { requireAdmin, requireApprovedVendor } from "@/lib/auth/session";
 import { userFacingDbError } from "@/lib/db-errors";
 import { formError, formSuccess, readText, type FormState } from "@/lib/form-state";
@@ -28,7 +29,11 @@ function refreshCatalog(productId?: string) {
   revalidatePath("/vendor/products");
   if (productId) revalidatePath(`/vendor/products/${productId}`);
   revalidatePath("/shop");
-  if (productId) revalidatePath(`/shop/${productId}`);
+  if (productId) {
+    revalidatePath(`/shop/${productId}`);
+    // The product's delivered-price estimate is cached; a price, weight or box change must show at once.
+    revalidateTag(productEstimateTag(productId), { expire: 0 });
+  }
 }
 
 /**
@@ -67,6 +72,9 @@ export async function saveProduct(input: unknown, productId?: string): Promise<S
     currency: p.currency,
     stock: p.stock,
     weight_grams: p.weightGrams,
+    length_cm: p.lengthCm,
+    width_cm: p.widthCm,
+    height_cm: p.heightCm,
     corridor_id: p.corridorId,
     specs: p.specs,
     warranty_months: p.warrantyMonths,

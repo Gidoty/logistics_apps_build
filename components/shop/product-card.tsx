@@ -4,16 +4,28 @@ import { ProductImage } from "@/components/shop/product-image";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/money";
 import type { ShopCurrency, ShopProductCard } from "@/lib/catalog/shop-queries";
+import { DeliveredEstimate } from "@/components/shop/delivered-estimate";
+import type { ShopEstimate } from "@/lib/pricing/shop-estimate";
+import type { CurrencyOption } from "@/lib/reference/queries";
 
 type Props = {
   product: ShopProductCard;
   currencies: ShopCurrency[];
   countryNames: Record<string, string>;
+  estimate: ShopEstimate;
+  viewerCurrencies: CurrencyOption[];
   /** Preload the first card images, which are at the top of the page. */
   preload?: boolean;
 };
 
-export function ProductCard({ product, currencies, countryNames, preload = false }: Props) {
+export function ProductCard({
+  product,
+  currencies,
+  countryNames,
+  estimate,
+  viewerCurrencies,
+  preload = false,
+}: Props) {
   const currency = currencies.find((item) => item.code === product.currency);
   const price = currency
     ? formatMoney(product.price_minor, currency)
@@ -38,6 +50,7 @@ export function ProductCard({ product, currencies, countryNames, preload = false
         <div className="grid gap-1">
           <h3 className="line-clamp-2 text-sm leading-snug font-medium">{product.title}</h3>
           <p className="text-base font-semibold">{price}</p>
+          <DeliveredEstimate estimate={estimate} currencies={viewerCurrencies} />
           <div className="text-muted-foreground flex flex-wrap items-center gap-1 text-xs">
             <ConditionBadge condition={product.condition} />
             {product.stock <= 0 ? <Badge variant="outline">Out of stock</Badge> : null}

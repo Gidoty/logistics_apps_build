@@ -109,22 +109,22 @@ describe.skipIf(!DATABASE_URL)("database: schema rules", () => {
     ]);
 
     const fees = await h.query("select count(*)::int as n from public.fee_rules");
-    expect(fees.rows[0].n).toBe(7);
+    expect(fees.rows[0].n).toBe(31);
   });
 
-  it("rejects a fee rule whose value does not match its method", async () => {
+  it("rejects a fee rule whose value does not fit its method", async () => {
     await h.scenario(async () => {
       await h.expectError(
-        `insert into public.fee_rules (corridor_id, fee_type, calc_method, percent, currency)
-         select id, 'bad_fee', 'flat', 5, 'NGN' from public.corridors limit 1`,
+        `insert into public.fee_rules (corridor_id, fee_type, calc_method, value, currency)
+         select id, 'fx_spread', 'percent', 150, 'NGN' from public.corridors limit 1`,
         [],
-        /fee_rules_value_matches_method/,
+        /fee_rules_value_valid/,
       );
       await h.expectError(
-        `insert into public.fee_rules (corridor_id, fee_type, calc_method, amount_minor, currency)
-         select id, 'bad_fee', 'percent', 500, 'NGN' from public.corridors limit 1`,
+        `insert into public.fee_rules (corridor_id, fee_type, calc_method, value, currency)
+         select id, 'fx_spread', 'flat', 5.5, 'NGN' from public.corridors limit 1`,
         [],
-        /fee_rules_value_matches_method/,
+        /fee_rules_value_valid/,
       );
     });
   });

@@ -7,6 +7,9 @@ import { buttonVariants } from "@/components/ui/button";
 import { pageCount } from "@/lib/catalog/format";
 import { parseShopParams, SHOP_PAGE_SIZE, shopHref } from "@/lib/catalog/shop-params";
 import { getShopReferences, listShopBrands, listShopProducts } from "@/lib/catalog/shop-queries";
+import { CurrencySwitcher } from "@/components/shop/currency-switcher";
+import { estimateProducts } from "@/lib/pricing/shop-estimate";
+import { getViewerCurrency } from "@/lib/pricing/viewer-currency-read";
 
 export const metadata: Metadata = {
   title: "Shop",
@@ -20,6 +23,9 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
     listShopProducts(filters, refs),
     listShopBrands(),
   ]);
+
+  const viewer = await getViewerCurrency();
+  const estimates = await estimateProducts(products, viewer.currency.code);
 
   const countryNames = Object.fromEntries(refs.countries.map((country) => [country.code, country.name]));
   const pages = pageCount(total, SHOP_PAGE_SIZE);
@@ -38,13 +44,20 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
       </div>
 
       <ShopFiltersForm filters={filters} refs={refs} brands={brands} />
+      <CurrencySwitcher current={viewer.currency.code} options={viewer.options} />
 
       {products.length > 0 ? (
         <>
           <p className="text-muted-foreground text-sm" aria-live="polite">
             {total} {total === 1 ? "product" : "products"}
           </p>
-          <ProductGrid products={products} currencies={refs.currencies} countryNames={countryNames} />
+          <ProductGrid
+            products={products}
+            currencies={refs.currencies}
+            countryNames={countryNames}
+            estimates={estimates}
+            viewerCurrencies={viewer.options}
+          />
           <Pagination
             page={filters.page}
             pageCount={pages}
