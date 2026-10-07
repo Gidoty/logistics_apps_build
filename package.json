@@ -19,7 +19,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "demo:images": "tsx scripts/generate-demo-images.ts",
-    "db:seed-dev": "PGOPTIONS=\"-c mapk.dev_seed=yes\" psql \"postgresql://postgres:postgres@127.0.0.1:54322/postgres\" -v ON_ERROR_STOP=1 -f supabase/seed-dev.sql"
+    "db:seed-dev": "PGOPTIONS=\"-c mapk.dev_seed=yes\" psql \"postgresql://postgres:postgres@127.0.0.1:54322/postgres\" -v ON_ERROR_STOP=1 -f supabase/seed-dev.sql",
+    "test:upgrade": "bash scripts/test-upgrade.sh"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

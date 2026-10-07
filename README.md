@@ -62,6 +62,7 @@ Local auth emails are caught by Mailpit at http://127.0.0.1:54324. `npm run db:r
 | `npm run lint` / `typecheck`      | ESLint / TypeScript                                                                        |
 | `npm run format` / `format:check` | Prettier write / check                                                                     |
 | `npm test`                        | Unit tests. DB tests are skipped unless `DATABASE_URL` is set                              |
+| `npm run test:upgrade`            | Checks that a project seeded in Batch 3 upgrades cleanly to the latest migration and seed  |
 | `npm run test:db`                 | Schema and RLS tests on a throwaway Postgres (needs Postgres 15+, no Docker)               |
 | `npm run test:e2e`                | Playwright at 375px against a fake Supabase: shop pages, Slow 4G weight, image compression |
 | `npm run db:start` / `db:reset`   | Start / rebuild local Supabase                                                             |

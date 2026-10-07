@@ -138,6 +138,17 @@ alter table public.fee_rules
   alter column effective_from set not null,
   alter column effective_from set default now();
 
+-- Projects that ran the earlier seed carry two rules the new structure cannot
+-- use: last-mile needs a zone now, and freight is priced in weight bands. They
+-- are closed (kept as history); seed.sql adds the banded and zoned rules.
+-- Nothing happens on a fresh database, where the table is still empty.
+update public.fee_rules
+set effective_to = greatest(clock_timestamp(), effective_from + interval '1 microsecond'),
+    notes = 'Closed by the pricing upgrade: replaced by zone and weight-band rules.'
+where effective_to is null
+  and ((fee_type = 'last_mile' and zone_id is null)
+    or (fee_type = 'international_freight' and weight_from_g is null and weight_to_g is null));
+
 alter table public.fee_rules
   add constraint fee_rules_value_valid check (
     value >= 0
