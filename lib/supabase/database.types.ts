@@ -528,6 +528,7 @@ export type Database = {
       };
       notifications: {
         Row: {
+          audience: string | null;
           channel: string;
           created_at: string;
           id: string;
@@ -540,6 +541,7 @@ export type Database = {
           user_id: string | null;
         };
         Insert: {
+          audience?: string | null;
           channel: string;
           created_at?: string;
           id?: string;
@@ -552,6 +554,7 @@ export type Database = {
           user_id?: string | null;
         };
         Update: {
+          audience?: string | null;
           channel?: string;
           created_at?: string;
           id?: string;
@@ -638,53 +641,149 @@ export type Database = {
           },
         ];
       };
+      order_messages: {
+        Row: {
+          body: string;
+          created_at: string;
+          id: string;
+          is_admin: boolean;
+          order_id: string;
+          read_at: string | null;
+          sender_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          body: string;
+          created_at?: string;
+          id?: string;
+          is_admin?: boolean;
+          order_id: string;
+          read_at?: string | null;
+          sender_id?: string;
+          updated_at?: string;
+        };
+        Update: {
+          body?: string;
+          created_at?: string;
+          id?: string;
+          is_admin?: boolean;
+          order_id?: string;
+          read_at?: string | null;
+          sender_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "order_messages_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "order_messages_sender_id_fkey";
+            columns: ["sender_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      order_status_transitions: {
+        Row: {
+          created_at: string;
+          from_status: Database["public"]["Enums"]["order_status"];
+          id: string;
+          to_status: Database["public"]["Enums"]["order_status"];
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          from_status: Database["public"]["Enums"]["order_status"];
+          id?: string;
+          to_status: Database["public"]["Enums"]["order_status"];
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          from_status?: Database["public"]["Enums"]["order_status"];
+          id?: string;
+          to_status?: Database["public"]["Enums"]["order_status"];
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       orders: {
         Row: {
           buyer_currency: string;
           buyer_id: string;
+          buyer_notes: string | null;
           corridor_id: string | null;
           created_at: string;
+          decline_note: string | null;
+          decline_reason: string | null;
           delivery_code_hash: string | null;
           id: string;
           link_preview_json: Json | null;
+          max_budget_minor: number | null;
           order_type: Database["public"]["Enums"]["order_type"];
           public_tracking_token: string;
+          quantity: number;
           recipient_id: string | null;
+          source_host: string | null;
           source_url: string | null;
           status: Database["public"]["Enums"]["order_status"];
+          store_domain_id: string | null;
           updated_at: string;
+          variant_notes: string | null;
           vendor_id: string | null;
         };
         Insert: {
           buyer_currency: string;
           buyer_id?: string;
+          buyer_notes?: string | null;
           corridor_id?: string | null;
           created_at?: string;
+          decline_note?: string | null;
+          decline_reason?: string | null;
           delivery_code_hash?: string | null;
           id?: string;
           link_preview_json?: Json | null;
+          max_budget_minor?: number | null;
           order_type: Database["public"]["Enums"]["order_type"];
           public_tracking_token?: string;
+          quantity?: number;
           recipient_id?: string | null;
+          source_host?: string | null;
           source_url?: string | null;
           status?: Database["public"]["Enums"]["order_status"];
+          store_domain_id?: string | null;
           updated_at?: string;
+          variant_notes?: string | null;
           vendor_id?: string | null;
         };
         Update: {
           buyer_currency?: string;
           buyer_id?: string;
+          buyer_notes?: string | null;
           corridor_id?: string | null;
           created_at?: string;
+          decline_note?: string | null;
+          decline_reason?: string | null;
           delivery_code_hash?: string | null;
           id?: string;
           link_preview_json?: Json | null;
+          max_budget_minor?: number | null;
           order_type?: Database["public"]["Enums"]["order_type"];
           public_tracking_token?: string;
+          quantity?: number;
           recipient_id?: string | null;
+          source_host?: string | null;
           source_url?: string | null;
           status?: Database["public"]["Enums"]["order_status"];
+          store_domain_id?: string | null;
           updated_at?: string;
+          variant_notes?: string | null;
           vendor_id?: string | null;
         };
         Relationships: [
@@ -714,6 +813,13 @@ export type Database = {
             columns: ["recipient_id"];
             isOneToOne: false;
             referencedRelation: "recipients";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "orders_store_domain_id_fkey";
+            columns: ["store_domain_id"];
+            isOneToOne: false;
+            referencedRelation: "store_domains";
             referencedColumns: ["id"];
           },
           {
@@ -997,6 +1103,48 @@ export type Database = {
         };
         Relationships: [];
       };
+      quote_internal_notes: {
+        Row: {
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          notes: string;
+          quote_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          notes: string;
+          quote_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          notes?: string;
+          quote_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "quote_internal_notes_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "quote_internal_notes_quote_id_fkey";
+            columns: ["quote_id"];
+            isOneToOne: true;
+            referencedRelation: "quotes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       quote_lines: {
         Row: {
           amount_minor: number;
@@ -1058,8 +1206,11 @@ export type Database = {
           id: string;
           order_id: string;
           prepared_by: string;
+          status: Database["public"]["Enums"]["quote_status"];
           total_minor: number;
           updated_at: string;
+          version: number;
+          weight_estimate_grams: number | null;
         };
         Insert: {
           accepted_at?: string | null;
@@ -1070,8 +1221,11 @@ export type Database = {
           id?: string;
           order_id: string;
           prepared_by: string;
+          status?: Database["public"]["Enums"]["quote_status"];
           total_minor: number;
           updated_at?: string;
+          version: number;
+          weight_estimate_grams?: number | null;
         };
         Update: {
           accepted_at?: string | null;
@@ -1082,8 +1236,11 @@ export type Database = {
           id?: string;
           order_id?: string;
           prepared_by?: string;
+          status?: Database["public"]["Enums"]["quote_status"];
           total_minor?: number;
           updated_at?: string;
+          version?: number;
+          weight_estimate_grams?: number | null;
         };
         Relationships: [
           {
@@ -1112,6 +1269,7 @@ export type Database = {
       recipients: {
         Row: {
           address_line: string;
+          archived: boolean;
           city: string;
           country_code: string;
           created_at: string;
@@ -1126,6 +1284,7 @@ export type Database = {
         };
         Insert: {
           address_line: string;
+          archived?: boolean;
           city: string;
           country_code?: string;
           created_at?: string;
@@ -1140,6 +1299,7 @@ export type Database = {
         };
         Update: {
           address_line?: string;
+          archived?: boolean;
           city?: string;
           country_code?: string;
           created_at?: string;
@@ -1166,6 +1326,38 @@ export type Database = {
             isOneToOne: false;
             referencedRelation: "profiles";
             referencedColumns: ["id"];
+          },
+        ];
+      };
+      regions: {
+        Row: {
+          country_code: string;
+          created_at: string;
+          id: string;
+          name: string;
+          updated_at: string;
+        };
+        Insert: {
+          country_code: string;
+          created_at?: string;
+          id?: string;
+          name: string;
+          updated_at?: string;
+        };
+        Update: {
+          country_code?: string;
+          created_at?: string;
+          id?: string;
+          name?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "regions_country_code_fkey";
+            columns: ["country_code"];
+            isOneToOne: false;
+            referencedRelation: "countries";
+            referencedColumns: ["code"];
           },
         ];
       };
@@ -1310,6 +1502,50 @@ export type Database = {
           },
         ];
       };
+      store_domains: {
+        Row: {
+          corridor_id: string | null;
+          created_at: string;
+          display_name: string;
+          domain: string;
+          id: string;
+          notes: string | null;
+          preview_allowed: boolean;
+          supported: boolean;
+          updated_at: string;
+        };
+        Insert: {
+          corridor_id?: string | null;
+          created_at?: string;
+          display_name: string;
+          domain: string;
+          id?: string;
+          notes?: string | null;
+          preview_allowed?: boolean;
+          supported?: boolean;
+          updated_at?: string;
+        };
+        Update: {
+          corridor_id?: string | null;
+          created_at?: string;
+          display_name?: string;
+          domain?: string;
+          id?: string;
+          notes?: string | null;
+          preview_allowed?: boolean;
+          supported?: boolean;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "store_domains_corridor_id_fkey";
+            columns: ["corridor_id"];
+            isOneToOne: false;
+            referencedRelation: "corridors";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       vendors: {
         Row: {
           business_name: string;
@@ -1395,6 +1631,17 @@ export type Database = {
         };
         Relationships: [];
       };
+      store_directory: {
+        Row: {
+          corridor_id: string | null;
+          display_name: string | null;
+          domain: string | null;
+          id: string | null;
+          preview_allowed: boolean | null;
+          supported: boolean | null;
+        };
+        Relationships: [];
+      };
       vendor_directory: {
         Row: {
           business_name: string | null;
@@ -1408,6 +1655,18 @@ export type Database = {
       };
     };
     Functions: {
+      _expire_order_quote: {
+        Args: {
+          _order_id: string;
+        };
+        Returns: boolean;
+      };
+      accept_quote: {
+        Args: {
+          _order_id: string;
+        };
+        Returns: string;
+      };
       approve_payout_change: {
         Args: {
           _vendor_id: string;
@@ -1440,6 +1699,18 @@ export type Database = {
         };
         Returns: boolean;
       };
+      create_link_order: {
+        Args: {
+          _source_url: string;
+          _quantity: number;
+          _variant_notes: string;
+          _buyer_notes: string;
+          _max_budget_minor: number;
+          _recipient_id: string;
+          _buyer_currency: string;
+        };
+        Returns: string;
+      };
       current_user_role: {
         Args: never;
         Returns: Database["public"]["Enums"]["user_role"];
@@ -1447,6 +1718,30 @@ export type Database = {
       current_vendor_id: {
         Args: never;
         Returns: string;
+      };
+      decline_order: {
+        Args: {
+          _order_id: string;
+          _reason: string;
+          _note?: string;
+        };
+        Returns: undefined;
+      };
+      decline_quote: {
+        Args: {
+          _order_id: string;
+        };
+        Returns: string;
+      };
+      expire_due_quotes: {
+        Args: never;
+        Returns: number;
+      };
+      expire_quote_if_due: {
+        Args: {
+          _order_id: string;
+        };
+        Returns: boolean;
       };
       is_admin: {
         Args: never;
@@ -1468,6 +1763,18 @@ export type Database = {
         };
         Returns: undefined;
       };
+      mark_order_messages_read: {
+        Args: {
+          _order_id: string;
+        };
+        Returns: number;
+      };
+      match_store_domain: {
+        Args: {
+          _host: string;
+        };
+        Returns: unknown;
+      };
       matched_prohibited_terms: {
         Args: {
           _text: string;
@@ -1485,6 +1792,21 @@ export type Database = {
           _product_id: string;
         };
         Returns: string;
+      };
+      queue_notification: {
+        Args: {
+          _user_id: string;
+          _audience: string;
+          _template: string;
+          _payload: Json;
+        };
+        Returns: undefined;
+      };
+      recipient_in_use: {
+        Args: {
+          _recipient_id: string;
+        };
+        Returns: boolean;
       };
       reject_payout_change: {
         Args: {
@@ -1506,12 +1828,33 @@ export type Database = {
         };
         Returns: string;
       };
+      send_quote: {
+        Args: {
+          _order_id: string;
+          _lines: Json;
+          _expires_in_hours: number;
+          _weight_grams?: number;
+          _internal_notes?: string;
+          _corridor_id?: string;
+          _confirm_over_budget?: boolean;
+        };
+        Returns: string;
+      };
       suspend_vendor: {
         Args: {
           _vendor_id: string;
           _note?: string;
         };
         Returns: undefined;
+      };
+      transition_order: {
+        Args: {
+          _order_id: string;
+          _to: Database["public"]["Enums"]["order_status"];
+          _note?: string;
+          _actor?: string;
+        };
+        Returns: Database["public"]["Enums"]["order_status"];
       };
       write_audit: {
         Args: {
@@ -1529,6 +1872,7 @@ export type Database = {
       order_status: "draft" | "quote_requested" | "quoted" | "quote_expired" | "awaiting_payment" | "paid" | "purchased" | "inspection_pending" | "inspection_approved" | "shipped" | "in_transit" | "arrived_destination" | "customs_cleared" | "out_for_delivery" | "delivered" | "disputed" | "refunded" | "cancelled";
       order_type: "catalog" | "link";
       product_condition: "new" | "open_box" | "refurbished" | "used";
+      quote_status: "sent" | "accepted" | "declined_by_buyer" | "expired" | "superseded";
       user_role: "buyer" | "vendor" | "admin";
       vendor_status: "pending" | "approved" | "suspended" | "rejected";
     };
@@ -1554,6 +1898,7 @@ export const Constants = {
       order_status: ["draft", "quote_requested", "quoted", "quote_expired", "awaiting_payment", "paid", "purchased", "inspection_pending", "inspection_approved", "shipped", "in_transit", "arrived_destination", "customs_cleared", "out_for_delivery", "delivered", "disputed", "refunded", "cancelled"],
       order_type: ["catalog", "link"],
       product_condition: ["new", "open_box", "refurbished", "used"],
+      quote_status: ["sent", "accepted", "declined_by_buyer", "expired", "superseded"],
       user_role: ["buyer", "vendor", "admin"],
       vendor_status: ["pending", "approved", "suspended", "rejected"],
     },

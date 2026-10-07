@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { parseMoneyInput } from "@/lib/money";
+import { fieldErrorsFromIssues, wholeNumber } from "@/lib/validation";
 import { Constants, type Enums } from "@/lib/supabase/database.types";
 
 export type ProductCondition = Enums<"product_condition">;
@@ -41,22 +42,6 @@ export type ProductInput = {
   requiresSpecialHandling: boolean;
   specs: Record<string, string>;
 };
-
-function wholeNumber(label: string, min: number, max: number) {
-  return z.union([z.string(), z.number()]).transform((value, ctx) => {
-    const text = String(value).trim();
-    if (!/^\d{1,9}$/.test(text)) {
-      ctx.addIssue({ code: "custom", message: `${label} must be a whole number.` });
-      return z.NEVER;
-    }
-    const number = Number(text);
-    if (number < min || number > max) {
-      ctx.addIssue({ code: "custom", message: `${label} must be between ${min} and ${max}.` });
-      return z.NEVER;
-    }
-    return number;
-  });
-}
 
 const specRowSchema = z.object({
   key: z.string().trim().max(40, "Spec names can have up to 40 characters."),
@@ -152,12 +137,4 @@ export function createProductSchema(context: ProductFormContext) {
     });
 }
 
-/** Field errors keyed by field name, for forms. */
-export function fieldErrorsFromIssues(issues: readonly z.core.$ZodIssue[]): Record<string, string[]> {
-  const errors: Record<string, string[]> = {};
-  for (const issue of issues) {
-    const key = String(issue.path[0] ?? "form");
-    (errors[key] ??= []).push(issue.message);
-  }
-  return errors;
-}
+export { fieldErrorsFromIssues };

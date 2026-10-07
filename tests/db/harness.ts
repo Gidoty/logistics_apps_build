@@ -61,6 +61,13 @@ export class DbHarness {
     ]);
   }
 
+  /** The Supabase service role: bypasses RLS but is not the database owner. */
+  async asServiceRole(): Promise<void> {
+    await this.db.query("reset role");
+    await this.db.query("set local role service_role");
+    await this.db.query("select set_config('request.jwt.claims', '', true)");
+  }
+
   /** Server-side session (service role or database owner): bypasses RLS. */
   async asServer(): Promise<void> {
     await this.db.query("reset role");

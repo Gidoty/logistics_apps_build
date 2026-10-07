@@ -30,10 +30,19 @@ test.describe("public pages at 375px", () => {
 });
 
 test.describe("route protection when logged out", () => {
-  for (const path of ["/account", "/vendor", "/admin"]) {
+  for (const path of [
+    "/account",
+    "/vendor",
+    "/admin",
+    "/order/link",
+    "/account/orders",
+    "/account/recipients",
+    "/admin/quotes",
+  ]) {
     test(`${path} sends visitors to login and keeps the return path`, async ({ page }) => {
       await page.goto(path);
-      const expected = path === "/account" ? /\/login$/ : new RegExp(`/login\\?next=%2F${path.slice(1)}$`);
+      const expected =
+        path === "/account" ? /\/login$/ : new RegExp(`/login\\?next=${encodeURIComponent(path)}$`);
       await expect(page).toHaveURL(expected);
     });
   }

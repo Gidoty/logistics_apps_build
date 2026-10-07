@@ -97,3 +97,38 @@ insert into public.categories (slug, name, parent_slug, active, prohibited, sort
   ('counterfeit',      'Counterfeit goods', null,         false, true,  92),
   ('hazardous',        'Hazardous goods',  null,          false, true,  93)
 on conflict (slug) do nothing;
+
+-- Nigerian states: the 36 states and the Federal Capital Territory. Used by
+-- the recipient address form and checked by the database.
+insert into public.regions (country_code, name) values
+  ('NG', 'Abia'), ('NG', 'Adamawa'), ('NG', 'Akwa Ibom'), ('NG', 'Anambra'), ('NG', 'Bauchi'),
+  ('NG', 'Bayelsa'), ('NG', 'Benue'), ('NG', 'Borno'), ('NG', 'Cross River'), ('NG', 'Delta'),
+  ('NG', 'Ebonyi'), ('NG', 'Edo'), ('NG', 'Ekiti'), ('NG', 'Enugu'), ('NG', 'Federal Capital Territory'),
+  ('NG', 'Gombe'), ('NG', 'Imo'), ('NG', 'Jigawa'), ('NG', 'Kaduna'), ('NG', 'Kano'),
+  ('NG', 'Katsina'), ('NG', 'Kebbi'), ('NG', 'Kogi'), ('NG', 'Kwara'), ('NG', 'Lagos'),
+  ('NG', 'Nasarawa'), ('NG', 'Niger'), ('NG', 'Ogun'), ('NG', 'Ondo'), ('NG', 'Osun'),
+  ('NG', 'Oyo'), ('NG', 'Plateau'), ('NG', 'Rivers'), ('NG', 'Sokoto'), ('NG', 'Taraba'),
+  ('NG', 'Yobe'), ('NG', 'Zamfara')
+on conflict (country_code, name) do nothing;
+
+-- Stores for "Buy it for me" links. Matching also covers subdomains
+-- (m.aliexpress.com matches aliexpress.com). Change these rows to change the
+-- rules: nothing about stores is hardcoded in the app.
+--   supported       false blocks the request with a clear message
+--   preview_allowed true lets the server read the page's title and image tags
+-- Previews are off for 1688.com and taobao.com because those sites usually
+-- answer with a login or bot-check page, so a fetch would only fail.
+insert into public.store_domains (domain, display_name, corridor_id, preview_allowed, supported, notes)
+select s.domain, s.display_name, c.id, s.preview_allowed, s.supported, s.notes
+from (values
+  ('aliexpress.com',  'AliExpress', 'CN', 'NG', true,  true,  null),
+  ('1688.com',        '1688',       'CN', 'NG', false, true,  'Chinese wholesale site. Pages are in Chinese and often need a login.'),
+  ('taobao.com',      'Taobao',     'CN', 'NG', false, true,  'Pages are in Chinese and often need a login.'),
+  ('temu.com',        'Temu',       'CN', 'NG', true,  true,  null),
+  ('jumia.com.ng',    'Jumia',      'NG', 'NG', true,  true,  null),
+  ('konga.com',       'Konga',      'NG', 'NG', true,  true,  null),
+  ('amazon.com',      'Amazon',     null, null, false, false, 'Not supported yet.'),
+  ('amazon.co.uk',    'Amazon UK',  null, null, false, false, 'Not supported yet.')
+) as s (domain, display_name, origin, destination, preview_allowed, supported, notes)
+left join public.corridors c on c.origin_country = s.origin and c.destination_country = s.destination
+on conflict (domain) do nothing;

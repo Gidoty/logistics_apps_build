@@ -7,6 +7,11 @@ export const metadata: Metadata = { title: "Admin" };
 
 const SECTIONS = [
   {
+    href: "/admin/quotes",
+    title: "Quote requests",
+    body: "Prepare and send quotes for link orders.",
+  },
+  {
     href: "/admin/vendors",
     title: "Vendors",
     body: "Review applications, approve, reject or suspend vendors.",
@@ -45,7 +50,7 @@ export default async function AdminPage() {
       </div>
       <Card>
         <CardContent className="text-muted-foreground text-sm">
-          The full admin dashboard (quotes, fees, exchange rates, shipments and disputes) arrives in Batch 8.
+          The full admin dashboard (fees, exchange rates, shipments and disputes) arrives in Batch 8.
         </CardContent>
       </Card>
     </div>

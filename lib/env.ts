@@ -42,3 +42,20 @@ export function getAppUrl(): string {
 export function isGoogleAuthEnabled(): boolean {
   return process.env.NEXT_PUBLIC_AUTH_GOOGLE_ENABLED === "true";
 }
+
+/**
+ * Server-only secrets. Never read in browser code. The service role key
+ * bypasses row security, so it is used only in a few narrow server paths
+ * (lib/supabase/service.ts).
+ */
+export function getServerEnv(): { SUPABASE_SERVICE_ROLE_KEY: string } {
+  const parsed = z.object({ SUPABASE_SERVICE_ROLE_KEY: z.string().min(20) }).safeParse({
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+  if (!parsed.success) {
+    throw new Error(
+      "Missing SUPABASE_SERVICE_ROLE_KEY. Set it as a server-only environment variable. See .env.example.",
+    );
+  }
+  return parsed.data;
+}

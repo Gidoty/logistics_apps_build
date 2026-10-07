@@ -104,6 +104,24 @@ export default async function AccountPage({ searchParams }: PageProps<"/account"
         </Card>
       ) : null}
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Orders and recipients</CardTitle>
+          <CardDescription>Buy from any store, delivered to people in Nigeria.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          <Link href="/order/link" className={buttonVariants()}>
+            Buy it for me
+          </Link>
+          <Link href="/account/orders" className={buttonVariants({ variant: "outline" })}>
+            Your orders
+          </Link>
+          <Link href="/account/recipients" className={buttonVariants({ variant: "outline" })}>
+            Recipients
+          </Link>
+        </CardContent>
+      </Card>
+
       <Link href="/account/password" className="text-primary text-sm underline">
         Change password
       </Link>

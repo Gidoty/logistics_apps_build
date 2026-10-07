@@ -17,6 +17,8 @@ Decisions already made are in `docs/DECISIONS.md`. Do not re-ask them.
 - Public pages (shop, vendor pages) read through `createPublicClient()` so they show exactly what a visitor sees, even to a signed-in admin.
 - Money typed by people goes through `lib/money` (strings in, integer minor units out). Never `parseFloat` a price.
 - Money-moving state changes (order status, ledger, payouts) go through server code, never direct client writes.
+- Order status changes only through `transition_order()` (SQL) or `transitionOrder()` (`lib/orders/state-machine.ts`). Never update `orders.status` directly. Orders are created only by SQL functions, never by direct inserts.
+- Anything that fetches a URL on a visitor's behalf goes through `lib/security/safe-fetch.ts`.
 - Business logic in `lib/<domain>`. Components in `components/` are UI only.
 - Zod on every input. TypeScript strict, no `any` without a comment explaining why.
 - Rates, fees, duty estimates and FX overrides come from the database. Never hardcode them.

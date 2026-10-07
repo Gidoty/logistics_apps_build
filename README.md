@@ -25,6 +25,7 @@ Next.js 16 (App Router, TypeScript strict), Tailwind CSS v4 with shadcn/ui, Supa
    The migrations also create two storage buckets with their access rules: `product-images` (public read) and `vendor-documents` (private).
 4. In the dashboard, Auth > URL Configuration: set Site URL to `http://localhost:3000` (or your deployed URL) and add `http://localhost:3000/auth/callback` to Redirect URLs.
 5. Run: `npm run dev` and open http://localhost:3000.
+6. Quote expiry runs every 15 minutes through pg_cron. In the dashboard open Database > Extensions and enable `pg_cron`, then run `supabase/cron.sql` in the SQL editor and check `select jobname, schedule, active from cron.job;`. Expiry is also checked whenever a quote is opened or accepted, so nothing breaks while the job is off, but order statuses only change to "Quote expired" on those checks.
 
 ## Setup with local Supabase (Docker)
 
@@ -78,6 +79,13 @@ DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npx vitest 
 Signed-in browser tests run when these are set (existing, confirmed accounts):
 `E2E_BUYER_EMAIL`, `E2E_BUYER_PASSWORD`, `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD`.
 
+## Link orders ("Buy it for me")
+
+- Buyer: `/order/link` (request), `/account/orders` and `/account/orders/<id>` (status, quote, messages), `/account/recipients` (address book).
+- Admin: `/admin/quotes` (queue, oldest first) and `/admin/quotes/<id>` (quote builder).
+- Manual test of an expired quote on a local database: `supabase/dev/backdate-quote.sql`.
+- The app server needs `SUPABASE_SERVICE_ROLE_KEY` at runtime (set it in Vercel as well).
+
 ## Project layout
 
 ```
@@ -100,6 +108,7 @@ tests/e2e             Playwright tests
 | Route        | Who                                          |
 | ------------ | -------------------------------------------- |
 | `/account/*` | any logged-in user                           |
+| `/order/*`   | any logged-in user                           |
 | `/vendor/*`  | role `vendor` with an approved vendor record |
 | `/admin/*`   | role `admin`                                 |
 

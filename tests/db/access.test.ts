@@ -71,17 +71,23 @@ describe.skipIf(!DATABASE_URL)("database: access rules", () => {
     return rows[0].id;
   }
 
+  /**
+   * Creates an order the way server code does (orders are never inserted by
+   * browser sessions), then switches back to acting as the owner.
+   */
   async function createOrder(
     owner: TestUser,
     status = "draft",
     vendor: string | null = null,
+    type: "link" | "catalog" = "link",
   ): Promise<string> {
-    await h.actAs(owner);
+    await h.asServer();
     const { rows } = await h.query(
-      `insert into public.orders (order_type, status, source_url, buyer_currency, corridor_id, vendor_id)
-       values ('link', $1, 'https://example.com/phone', 'GBP', $2, $3) returning id`,
-      [status, cnNgCorridorId, vendor],
+      `insert into public.orders (buyer_id, order_type, status, source_url, buyer_currency, corridor_id, vendor_id)
+       values ($1, $2, $3, $4, 'GBP', $5, $6) returning id`,
+      [owner.id, type, status, type === "link" ? "https://example.com/phone" : null, cnNgCorridorId, vendor],
     );
+    await h.actAs(owner);
     return rows[0].id;
   }
 
@@ -343,7 +349,7 @@ describe.skipIf(!DATABASE_URL)("database: access rules", () => {
   });
 
   describe("orders", () => {
-    it("lets a buyer request a quote and gives the order an unguessable tracking token", async () => {
+    it("gives every order an unguessable tracking token", async () => {
       await h.scenario(async () => {
         const orderId = await createOrder(buyer, "quote_requested");
         const { rows } = await h.query("select public_tracking_token from public.orders where id = $1", [
@@ -353,72 +359,41 @@ describe.skipIf(!DATABASE_URL)("database: access rules", () => {
       });
     });
 
-    it("blocks a buyer from creating an order as paid", async () => {
+    it("blocks buyers from inserting orders directly, whatever the status", async () => {
       await h.scenario(async () => {
         await h.actAs(buyer);
-        await h.expectError(
-          `insert into public.orders (order_type, status, source_url, buyer_currency)
-           values ('link', 'paid', 'https://example.com/x', 'NGN')`,
-          [],
-          RLS_DENIED,
-        );
+        for (const status of ["draft", "quote_requested", "paid"]) {
+          await h.expectError(
+            `insert into public.orders (order_type, status, source_url, buyer_currency)
+             values ('link', $1, 'https://example.com/x', 'NGN')`,
+            [status],
+            PERMISSION_DENIED,
+          );
+        }
       });
     });
 
-    it("lets a buyer submit a draft but never mark it paid or delivered", async () => {
+    it("blocks buyers from changing an order directly: status, tracking token or platform fields", async () => {
       await h.scenario(async () => {
         const orderId = await createOrder(buyer);
-        await h.expectError("update public.orders set status = 'paid' where id = $1", [orderId], RLS_DENIED);
-        await h.expectError(
-          "update public.orders set status = 'delivered' where id = $1",
-          [orderId],
-          RLS_DENIED,
-        );
-
-        const submitted = await h.query("update public.orders set status = 'quote_requested' where id = $1", [
-          orderId,
-        ]);
-        expect(submitted.rowCount).toBe(1);
-
-        // No longer a draft: the buyer can no longer edit it.
-        const edit = await h.query(
-          "update public.orders set source_url = 'https://example.com/y' where id = $1",
-          [orderId],
-        );
-        expect(edit.rowCount).toBe(0);
-      });
-    });
-
-    it("blocks a buyer from setting platform-only order fields", async () => {
-      await h.scenario(async () => {
-        const orderId = await createOrder(buyer);
-        await h.expectError(
-          "update public.orders set public_tracking_token = 'guessable' where id = $1",
-          [orderId],
-          PERMISSION_DENIED,
-        );
-        await h.expectError(
-          "update public.orders set delivery_code_hash = 'x' where id = $1",
-          [orderId],
-          /only be changed by the platform/,
-        );
+        for (const change of [
+          "status = 'paid'",
+          "status = 'delivered'",
+          "status = 'quote_requested'",
+          "public_tracking_token = 'guessable'",
+          "delivery_code_hash = 'x'",
+          "source_url = 'https://example.com/y'",
+        ]) {
+          await h.expectError(
+            `update public.orders set ${change} where id = $1`,
+            [orderId],
+            PERMISSION_DENIED,
+          );
+        }
         await h.expectError(
           "update public.orders set vendor_id = $2 where id = $1",
           [orderId, vendorId],
-          /only be changed by the platform/,
-        );
-      });
-    });
-
-    it("blocks using another buyer's recipient", async () => {
-      await h.scenario(async () => {
-        const recipientId = await createRecipient(otherBuyer);
-        await h.actAs(buyer);
-        await h.expectError(
-          `insert into public.orders (order_type, source_url, buyer_currency, recipient_id)
-           values ('link', 'https://example.com/x', 'NGN', $1)`,
-          [recipientId],
-          RLS_DENIED,
+          PERMISSION_DENIED,
         );
       });
     });
@@ -435,14 +410,19 @@ describe.skipIf(!DATABASE_URL)("database: access rules", () => {
       });
     });
 
-    it("lets the assigned vendor read the order but not change it", async () => {
+    it("lets the assigned vendor read a catalog order but never a link order, and not change either", async () => {
       await h.scenario(async () => {
-        const orderId = await createOrder(buyer, "draft", vendorId);
+        const catalogOrder = await createOrder(buyer, "paid", vendorId, "catalog");
+        const linkOrder = await createOrder(buyer, "quote_requested", vendorId, "link");
         await h.actAs(vendorOwner);
-        const read = await h.query("select id from public.orders where id = $1", [orderId]);
-        expect(read.rowCount).toBe(1);
-        const update = await h.query("update public.orders set status = 'shipped' where id = $1", [orderId]);
-        expect(update.rowCount).toBe(0);
+        const read = await h.query("select id from public.orders order by created_at");
+        expect(read.rows.map((r) => r.id)).toEqual([catalogOrder]);
+        await h.expectError(
+          "update public.orders set status = 'shipped' where id = $1",
+          [catalogOrder],
+          PERMISSION_DENIED,
+        );
+        expect((await h.query("select id from public.orders where id = $1", [linkOrder])).rowCount).toBe(0);
       });
     });
 
