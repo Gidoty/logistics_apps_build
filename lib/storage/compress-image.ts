@@ -84,8 +84,11 @@ async function encode(
 }
 
 /** Validates, resizes and compresses one picked file. Throws ImageCompressionError with a user-facing message. */
-export async function compressProductImage(file: File): Promise<CompressedImage> {
-  const problem = validateProductImageFile(file);
+export async function compressProductImage(
+  file: File,
+  validate: (file: File) => string | null = validateProductImageFile,
+): Promise<CompressedImage> {
+  const problem = validate(file);
   if (problem) throw new ImageCompressionError(problem);
 
   const drawable = await decode(file);

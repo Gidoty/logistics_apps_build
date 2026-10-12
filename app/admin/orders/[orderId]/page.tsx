@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { InspectionProofCard } from "@/components/fulfilment/inspection-proof-card";
+import { MarkPurchasedForm } from "@/components/fulfilment/mark-purchased-form";
+import { ProofUploadForm } from "@/components/fulfilment/proof-upload-form";
+import { ResolveDisputeForm } from "@/components/fulfilment/resolve-dispute-form";
 import { ClearFlagsForm } from "@/components/admin-orders/clear-flags-form";
 import { OrderStatusBadge } from "@/components/orders/order-status-badge";
 import { Alert } from "@/components/ui/alert";
@@ -8,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireAdmin } from "@/lib/auth/session";
 import { isUuid } from "@/lib/catalog/shop-queries";
+import { getInspectionProof, listDisputesForOrder } from "@/lib/fulfilment/queries";
 import { formatMoney } from "@/lib/money";
 import { getAdminOrder } from "@/lib/orders/admin-orders";
 import { formatDateTime } from "@/lib/orders/format";
@@ -22,6 +27,8 @@ export default async function AdminOrderPage({ params }: PageProps<"/admin/order
   if (!isUuid(orderId)) notFound();
   const order = await getAdminOrder(orderId);
   if (!order) notFound();
+  const [proof, disputes] = await Promise.all([getInspectionProof(orderId), listDisputesForOrder(orderId)]);
+  const flagged = order.review_flags.length > 0;
   const money = (minor: number) => formatMoney(minor, NGN_FORMAT);
   const summary = order.summary;
 
@@ -102,6 +109,47 @@ export default async function AdminOrderPage({ params }: PageProps<"/admin/order
           ) : null}
         </CardContent>
       </Card>
+
+      {order.status === "paid" || order.status === "purchased" || disputes.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Fulfilment</CardTitle>
+            <CardDescription>
+              {order.order_type === "link"
+                ? "You buy this item from the store, then upload the proof."
+                : "Catalog orders are normally handled by the vendor. You can act for them."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            {flagged && (order.status === "paid" || order.status === "purchased") ? (
+              <Alert variant="destructive">Clear the flags above before the order moves on.</Alert>
+            ) : null}
+            {order.status === "paid" && !flagged ? <MarkPurchasedForm orderId={order.id} /> : null}
+            {order.status === "purchased" && !flagged ? <ProofUploadForm orderId={order.id} /> : null}
+            {disputes.map((dispute) => (
+              <div key={dispute.id} className="grid gap-2 rounded-lg border p-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-medium">Dispute · {formatDateTime(dispute.created_at)}</span>
+                  <Badge variant={dispute.status === "open" ? "default" : "outline"}>
+                    {dispute.status.replaceAll("_", " ")}
+                  </Badge>
+                </div>
+                <p className="break-words whitespace-pre-line">{dispute.reason}</p>
+                {dispute.resolution_note ? (
+                  <p className="text-muted-foreground break-words">Resolution: {dispute.resolution_note}</p>
+                ) : null}
+                {dispute.status === "open" || dispute.status === "under_review" ? (
+                  <ResolveDisputeForm orderId={order.id} disputeId={dispute.id} />
+                ) : null}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {proof ? (
+        <InspectionProofCard orderId={order.id} status={order.status} proof={proof} viewer="staff" />
+      ) : null}
 
       <Card>
         <CardHeader>

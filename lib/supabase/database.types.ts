@@ -245,6 +245,7 @@ export type Database = {
           created_at: string;
           id: string;
           order_id: string;
+          previous_status: Database["public"]["Enums"]["order_status"] | null;
           raised_by: string;
           reason: string;
           resolution_note: string | null;
@@ -255,6 +256,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           order_id: string;
+          previous_status?: Database["public"]["Enums"]["order_status"] | null;
           raised_by?: string;
           reason: string;
           resolution_note?: string | null;
@@ -265,6 +267,7 @@ export type Database = {
           created_at?: string;
           id?: string;
           order_id?: string;
+          previous_status?: Database["public"]["Enums"]["order_status"] | null;
           raised_by?: string;
           reason?: string;
           resolution_note?: string | null;
@@ -528,6 +531,7 @@ export type Database = {
       };
       inspections: {
         Row: {
+          auto_approved: boolean;
           buyer_decision: string | null;
           created_at: string;
           decided_at: string | null;
@@ -539,6 +543,7 @@ export type Database = {
           updated_at: string;
         };
         Insert: {
+          auto_approved?: boolean;
           buyer_decision?: string | null;
           created_at?: string;
           decided_at?: string | null;
@@ -550,6 +555,7 @@ export type Database = {
           updated_at?: string;
         };
         Update: {
+          auto_approved?: boolean;
           buyer_decision?: string | null;
           created_at?: string;
           decided_at?: string | null;
@@ -852,6 +858,7 @@ export type Database = {
           max_budget_minor: number | null;
           order_type: Database["public"]["Enums"]["order_type"];
           public_tracking_token: string;
+          purchased_at: string | null;
           quantity: number;
           recipient_id: string | null;
           review_flagged_at: string | null;
@@ -860,6 +867,7 @@ export type Database = {
           source_url: string | null;
           status: Database["public"]["Enums"]["order_status"];
           store_domain_id: string | null;
+          supplier_reference: string | null;
           updated_at: string;
           variant_notes: string | null;
           vendor_id: string | null;
@@ -881,6 +889,7 @@ export type Database = {
           max_budget_minor?: number | null;
           order_type: Database["public"]["Enums"]["order_type"];
           public_tracking_token?: string;
+          purchased_at?: string | null;
           quantity?: number;
           recipient_id?: string | null;
           review_flagged_at?: string | null;
@@ -889,6 +898,7 @@ export type Database = {
           source_url?: string | null;
           status?: Database["public"]["Enums"]["order_status"];
           store_domain_id?: string | null;
+          supplier_reference?: string | null;
           updated_at?: string;
           variant_notes?: string | null;
           vendor_id?: string | null;
@@ -910,6 +920,7 @@ export type Database = {
           max_budget_minor?: number | null;
           order_type?: Database["public"]["Enums"]["order_type"];
           public_tracking_token?: string;
+          purchased_at?: string | null;
           quantity?: number;
           recipient_id?: string | null;
           review_flagged_at?: string | null;
@@ -918,6 +929,7 @@ export type Database = {
           source_url?: string | null;
           status?: Database["public"]["Enums"]["order_status"];
           store_domain_id?: string | null;
+          supplier_reference?: string | null;
           updated_at?: string;
           variant_notes?: string | null;
           vendor_id?: string | null;
@@ -1956,6 +1968,16 @@ export type Database = {
         };
         Returns: string;
       };
+      add_shipment_event: {
+        Args: {
+          _shipment_id: string;
+          _status: string;
+          _note?: string;
+          _location?: string;
+          _occurred_at?: string;
+        };
+        Returns: Json;
+      };
       apply_successful_payment: {
         Args: {
           _payment_id: string;
@@ -1976,6 +1998,29 @@ export type Database = {
           _vendor_id: string;
         };
         Returns: undefined;
+      };
+      attach_order_to_shipment: {
+        Args: {
+          _shipment_id: string;
+          _order_id: string;
+        };
+        Returns: undefined;
+      };
+      auto_approve_inspections: {
+        Args: never;
+        Returns: number;
+      };
+      can_manage_inspection: {
+        Args: {
+          _order_id: string;
+        };
+        Returns: boolean;
+      };
+      can_view_inspection: {
+        Args: {
+          _order_id: string;
+        };
+        Returns: boolean;
       };
       cancel_unpaid_order: {
         Args: {
@@ -2085,6 +2130,16 @@ export type Database = {
         };
         Returns: string;
       };
+      create_shipment: {
+        Args: {
+          _partner: string;
+          _tracking_number: string;
+          _origin: string;
+          _destination: string;
+          _order_ids: string[];
+        };
+        Returns: string;
+      };
       current_user_role: {
         Args: never;
         Returns: Database["public"]["Enums"]["user_role"];
@@ -2092,6 +2147,14 @@ export type Database = {
       current_vendor_id: {
         Args: never;
         Returns: string;
+      };
+      decide_inspection: {
+        Args: {
+          _order_id: string;
+          _decision: string;
+          _reason?: string;
+        };
+        Returns: undefined;
       };
       decline_order: {
         Args: {
@@ -2116,6 +2179,18 @@ export type Database = {
           _order_id: string;
         };
         Returns: boolean;
+      };
+      inspection_folder_count: {
+        Args: {
+          _order_id: string;
+        };
+        Returns: number;
+      };
+      inspection_folder_order: {
+        Args: {
+          _name: string;
+        };
+        Returns: string;
       };
       is_admin: {
         Args: never;
@@ -2148,6 +2223,13 @@ export type Database = {
           _payment_id: string;
           _status: string;
           _payload?: Json;
+        };
+        Returns: undefined;
+      };
+      mark_purchased: {
+        Args: {
+          _order_id: string;
+          _supplier_reference?: string;
         };
         Returns: undefined;
       };
@@ -2247,6 +2329,14 @@ export type Database = {
         };
         Returns: string;
       };
+      resolve_dispute: {
+        Args: {
+          _dispute_id: string;
+          _outcome: string;
+          _note: string;
+        };
+        Returns: undefined;
+      };
       save_delivery_zone: {
         Args: {
           _id: string;
@@ -2284,6 +2374,17 @@ export type Database = {
           _spread_percent: number;
         };
         Returns: undefined;
+      };
+      submit_inspection: {
+        Args: {
+          _order_id: string;
+          _actor: string;
+          _media: Json;
+          _serial: string;
+          _notes?: string;
+          _video_seconds?: number;
+        };
+        Returns: string;
       };
       suspend_vendor: {
         Args: {

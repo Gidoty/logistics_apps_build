@@ -15,9 +15,9 @@ const ALLOWED = Object.entries(ORDER_TRANSITIONS).flatMap(([from, tos]) =>
 );
 
 describe("order state machine", () => {
-  it("has 42 allowed moves over 18 statuses", () => {
+  it("has 45 allowed moves over 18 statuses", () => {
     expect(ORDER_STATUSES).toHaveLength(18);
-    expect(ALLOWED).toHaveLength(42);
+    expect(ALLOWED).toHaveLength(45);
   });
 
   it.each(ALLOWED)("allows %s -> %s", (from, to) => {
@@ -43,11 +43,11 @@ describe("order state machine", () => {
     expect(() => assertTransition(from, to)).toThrow(InvalidTransitionError);
   });
 
-  it("checks every pair: 42 allowed, 282 refused", () => {
+  it("checks every pair: 45 allowed, 279 refused", () => {
     let refused = 0;
     for (const from of ORDER_STATUSES)
       for (const to of ORDER_STATUSES) if (!canTransition(from, to)) refused++;
-    expect(refused).toBe(18 * 18 - 42);
+    expect(refused).toBe(18 * 18 - 45);
   });
 
   it("treats cancelled and refunded as final", () => {

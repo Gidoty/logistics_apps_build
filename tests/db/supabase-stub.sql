@@ -50,6 +50,7 @@ create table storage.objects (
   bucket_id   text references storage.buckets (id),
   name        text,
   owner       uuid,
+  metadata    jsonb,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );

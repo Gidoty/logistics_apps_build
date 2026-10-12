@@ -514,31 +514,16 @@ describe.skipIf(!DATABASE_URL)("database: access rules", () => {
   });
 
   describe("disputes", () => {
-    it("lets a buyer open a dispute on their own order only, always as open", async () => {
+    it("gives buyers no direct write access to disputes (they go through decide_inspection)", async () => {
       await h.scenario(async () => {
         const orderId = await createOrder(buyer);
-        const otherOrderId = await createOrder(otherBuyer);
-
         await h.actAs(buyer);
-        const { rows } = await h.query(
-          "insert into public.disputes (order_id, reason) values ($1, 'The phone arrived with a cracked screen.') returning status, raised_by",
-          [orderId],
-        );
-        expect(rows[0]).toEqual({ status: "open", raised_by: buyer.id });
-
         await h.expectError(
-          "insert into public.disputes (order_id, reason) values ($1, 'Not my order but I want to complain.')",
-          [otherOrderId],
-          RLS_DENIED,
-        );
-        // No update policy for buyers: the row is invisible to UPDATE.
-        const resolve = await h.query(
-          "update public.disputes set status = 'resolved_buyer' where order_id = $1",
+          "insert into public.disputes (order_id, reason) values ($1, 'The phone arrived with a cracked screen.')",
           [orderId],
+          /permission denied/,
         );
-        expect(resolve.rowCount).toBe(0);
-        const stillOpen = await h.query("select status from public.disputes where order_id = $1", [orderId]);
-        expect(stillOpen.rows[0].status).toBe("open");
+        await h.expectError("update public.disputes set status = 'resolved_buyer'", [], /permission denied/);
       });
     });
   });

@@ -22,9 +22,9 @@ export const ORDER_TRANSITIONS: Readonly<Record<OrderStatus, readonly OrderStatu
   purchased: ["inspection_pending", "disputed", "refunded"],
   inspection_pending: ["inspection_approved", "disputed", "refunded"],
   inspection_approved: ["shipped", "disputed", "refunded"],
-  shipped: ["in_transit", "disputed"],
-  in_transit: ["arrived_destination", "disputed"],
-  arrived_destination: ["customs_cleared", "disputed"],
+  shipped: ["in_transit", "out_for_delivery", "disputed"],
+  in_transit: ["arrived_destination", "out_for_delivery", "disputed"],
+  arrived_destination: ["customs_cleared", "out_for_delivery", "disputed"],
   customs_cleared: ["out_for_delivery", "disputed"],
   out_for_delivery: ["delivered", "disputed"],
   delivered: ["disputed"],
@@ -122,4 +122,24 @@ export async function transitionOrderWith(
   });
   if (error) throw new Error(error.message);
   return { from: order.status, to: toStatus };
+}
+
+const POST_PAYMENT: readonly OrderStatus[] = [
+  "paid",
+  "purchased",
+  "inspection_pending",
+  "inspection_approved",
+  "shipped",
+  "in_transit",
+  "arrived_destination",
+  "customs_cleared",
+  "out_for_delivery",
+  "delivered",
+  "disputed",
+  "refunded",
+];
+
+/** True once the buyer has paid (including orders that were then disputed or refunded). */
+export function isPostPayment(status: OrderStatus): boolean {
+  return POST_PAYMENT.includes(status);
 }

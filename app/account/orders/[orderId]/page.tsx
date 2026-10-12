@@ -16,7 +16,10 @@ import { formatMoney } from "@/lib/money";
 import { formatDateTime } from "@/lib/orders/format";
 import { getOwnOrder } from "@/lib/orders/queries";
 import { DECLINE_REASON_LABELS, type DeclineReason } from "@/lib/orders/schemas";
-import { buildRequestTimeline } from "@/lib/orders/timeline";
+import { buildFulfilmentTimeline, buildRequestTimeline } from "@/lib/orders/timeline";
+import { InspectionProofCard } from "@/components/fulfilment/inspection-proof-card";
+import { getInspectionProof } from "@/lib/fulfilment/queries";
+import { isPostPayment } from "@/lib/orders/state-machine";
 import { getPaymentPreview, NGN_FORMAT } from "@/lib/payments/preview";
 import { PaymentCard } from "@/components/payments/payment-card";
 import { listActiveCurrencies } from "@/lib/reference/queries";
@@ -35,6 +38,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/ac
   ]);
   if (!detail) notFound();
   const { order, preview, recipient, quote, messages } = detail;
+  const proof = isPostPayment(order.status) ? await getInspectionProof(order.id) : null;
   const payment = order.status === "awaiting_payment" ? await getPaymentPreview(order.id, user.id) : null;
   const quoteCurrency = quote ? currencies.find((currency) => currency.code === quote.currency) : undefined;
   const budgetCurrency = currencies.find((currency) => currency.code === order.buyer_currency);
@@ -76,9 +80,17 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/ac
           <CardTitle>Progress</CardTitle>
         </CardHeader>
         <CardContent>
-          <OrderTimeline steps={buildRequestTimeline(order.status)} />
+          <OrderTimeline
+            steps={
+              isPostPayment(order.status)
+                ? buildFulfilmentTimeline(order.status)
+                : buildRequestTimeline(order.status)
+            }
+          />
         </CardContent>
       </Card>
+
+      {proof ? <InspectionProofCard orderId={order.id} status={order.status} proof={proof} /> : null}
 
       {order.status === "cancelled" && declineReason ? (
         <Alert variant="destructive">

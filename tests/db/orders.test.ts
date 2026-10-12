@@ -180,7 +180,7 @@ describe.skipIf(!DATABASE_URL)("database: link orders, quotes and the state mach
         ORDER_TRANSITIONS[from].map((to) => `${from}>${to}`),
       ).sort();
       expect(inDatabase).toEqual(inCode);
-      expect(inCode).toHaveLength(42);
+      expect(inCode).toHaveLength(45);
     });
 
     it("allows exactly the mapped moves and refuses the other pairs (all 324 tried)", async () => {
@@ -221,8 +221,8 @@ describe.skipIf(!DATABASE_URL)("database: link orders, quotes and the state mach
           });
         }
       }
-      expect(allowed).toBe(42);
-      expect(refused).toBe(282);
+      expect(allowed).toBe(45);
+      expect(refused).toBe(279);
     });
 
     it("names the forbidden examples: a request cannot jump to delivered, and final states stay final", async () => {

@@ -12,6 +12,11 @@ const SECTIONS = [
     body: "Payments, orders that need attention, fulfilment and payouts.",
   },
   {
+    href: "/admin/shipments",
+    title: "Shipments",
+    body: "Create shipments, attach orders and record tracking events.",
+  },
+  {
     href: "/admin/quotes",
     title: "Quote requests",
     body: "Prepare and send quotes for link orders.",
