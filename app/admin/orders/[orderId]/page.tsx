@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { MarkDeliveredForm, UnlockCodeForm } from "@/components/delivery/delivery-admin-panel";
+import { RefundForm, ReleaseForm } from "@/components/payouts/payout-forms";
+import { ensureDeliveryCode } from "@/lib/delivery/issue";
+import { getDeliveryCodeState } from "@/lib/delivery/queries";
 import { InspectionProofCard } from "@/components/fulfilment/inspection-proof-card";
 import { MarkPurchasedForm } from "@/components/fulfilment/mark-purchased-form";
 import { ProofUploadForm } from "@/components/fulfilment/proof-upload-form";
@@ -27,8 +31,15 @@ export default async function AdminOrderPage({ params }: PageProps<"/admin/order
   if (!isUuid(orderId)) notFound();
   const order = await getAdminOrder(orderId);
   if (!order) notFound();
+  if (order.status === "out_for_delivery") await ensureDeliveryCode(order.id);
+  const codeState = order.status === "out_for_delivery" ? await getDeliveryCodeState(order.id) : null;
   const [proof, disputes] = await Promise.all([getInspectionProof(orderId), listDisputesForOrder(orderId)]);
   const flagged = order.review_flags.length > 0;
+  const balanceMinor = Number(order.summary?.balance_minor ?? 0);
+  const openDispute = disputes.some((d) => d.status === "open" || d.status === "under_review");
+  const canRefund =
+    balanceMinor > 0 &&
+    ["paid", "purchased", "inspection_pending", "inspection_approved", "disputed"].includes(order.status);
   const money = (minor: number) => formatMoney(minor, NGN_FORMAT);
   const summary = order.summary;
 
@@ -143,6 +154,61 @@ export default async function AdminOrderPage({ params }: PageProps<"/admin/order
                 ) : null}
               </div>
             ))}
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {order.status === "out_for_delivery" ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Delivery</CardTitle>
+            <CardDescription>
+              The recipient confirms with the 6-digit code the buyer holds.{" "}
+              {codeState
+                ? `${codeState.attempts} wrong ${codeState.attempts === 1 ? "try" : "tries"} so far.`
+                : "No code has been made yet."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            {codeState?.locked ? (
+              <>
+                <Alert variant="destructive">The code is locked after 5 wrong tries.</Alert>
+                <UnlockCodeForm orderId={order.id} />
+              </>
+            ) : null}
+            <MarkDeliveredForm orderId={order.id} />
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {order.status === "delivered" || canRefund ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Payout and refund</CardTitle>
+            <CardDescription>
+              Money moves outside the app, by bank transfer. Record it here after you send it.{" "}
+              {money(balanceMinor)} is held.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-5">
+            {order.status === "delivered" && balanceMinor > 0 ? (
+              <ReleaseForm
+                orderId={order.id}
+                balanceMinor={balanceMinor}
+                amountLabel={
+                  order.order_type === "link" ? "Release to supplier (purchase cost)" : "Release to vendor"
+                }
+              />
+            ) : null}
+            {order.status === "delivered" && balanceMinor === 0 ? (
+              <p className="text-muted-foreground text-sm">
+                Everything held for this order has been released.
+              </p>
+            ) : null}
+            {canRefund && openDispute ? (
+              <Alert>Resolve the open dispute before recording a refund.</Alert>
+            ) : null}
+            {canRefund && !openDispute ? <RefundForm orderId={order.id} /> : null}
           </CardContent>
         </Card>
       ) : null}

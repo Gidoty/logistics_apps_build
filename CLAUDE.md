@@ -18,6 +18,10 @@ Decisions already made are in `docs/DECISIONS.md`. Do not re-ask them.
 - Money typed by people goes through `lib/money` (strings in, integer minor units out). Never `parseFloat` a price.
 - Money-moving state changes (order status, ledger, payouts) go through server code, never direct client writes.
 - Order status changes only through `transition_order()` (SQL) or `transitionOrder()` (`lib/orders/state-machine.ts`). Never update `orders.status` directly. Orders are created only by SQL functions, never by direct inserts.
+- Payments are marked paid only by the verified Paystack webhook (`lib/payments/webhook.ts`). The callback page never changes anything. Amounts to charge come from the quote's pricing snapshot, never from the browser.
+- Ledger rows are written only by SQL functions (`apply_successful_payment`, `release_to_vendor`, `record_refund`). The held balance never goes below zero. Never update or delete a ledger row.
+- Delivery codes are never stored in clear text and never selected into a page except through `getBuyerDelivery()`. `delivery_codes` has no client access. The public tracking page reads only through `get_tracking()`; add a field there only after checking it is safe for a stranger who holds the link.
+- Inspection proof is submitted through `submit_inspection()` (server only), shipments through the `create_shipment`, `attach_order_to_shipment` and `add_shipment_event` functions. Never write those tables directly.
 - Anything that fetches a URL on a visitor's behalf goes through `lib/security/safe-fetch.ts`.
 - Pricing rules and duty rates are never edited: change a rate with `replace_fee_rule` / `replace_duty_rate` (admin pricing page). The engine in `lib/pricing` stays pure (no database, no clock); a loader feeds it. A quote needs its pricing snapshot, and never quote on a stale exchange rate.
 - Business logic in `lib/<domain>`. Components in `components/` are UI only.

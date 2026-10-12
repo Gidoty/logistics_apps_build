@@ -19,7 +19,10 @@ export default async function VendorPage() {
           <CardDescription>{vendor ? `${vendor.city}, ${vendor.country_code}` : null}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
-          <Link href="/vendor/products" className={buttonVariants()}>
+          <Link href="/vendor/orders" className={buttonVariants()}>
+            Orders
+          </Link>
+          <Link href="/vendor/products" className={buttonVariants({ variant: "outline" })}>
             Manage products
           </Link>
           {vendor ? (
@@ -30,7 +33,7 @@ export default async function VendorPage() {
         </CardContent>
       </Card>
       <p className="text-muted-foreground text-sm">
-        Orders, inspection uploads and payouts arrive in later batches.
+        Payout details and payouts arrive in a later batch. For now our team pays vendors by bank transfer.
       </p>
     </div>
   );

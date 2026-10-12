@@ -39,6 +39,8 @@ test.describe("route protection when logged out", () => {
     "/account/recipients",
     "/admin/quotes",
     "/admin/orders",
+    "/admin/shipments",
+    "/vendor/orders",
     `/checkout/d2000000-0000-4000-8000-000000000001`,
     "/pay/callback?reference=abc",
   ]) {

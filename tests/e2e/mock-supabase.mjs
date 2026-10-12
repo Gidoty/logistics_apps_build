@@ -347,6 +347,27 @@ const fxRows = () =>
     spread_percent: 1.5,
   }));
 
+// Public tracking records, keyed by token. Same shape as get_tracking() in the database.
+const TRACKING_BASE = {
+  item: "Samsung Galaxy A15",
+  recipient_first_name: "Ada",
+  recipient_city: "Port Harcourt",
+  updated_at: "2026-10-12T10:00:00Z",
+  can_enter_code: false,
+  code_locked: false,
+  history: [
+    { status: "paid", at: "2026-10-10T09:00:00Z" },
+    { status: "purchased", at: "2026-10-10T12:00:00Z" },
+    { status: "inspection_approved", at: "2026-10-11T09:00:00Z" },
+    { status: "shipped", at: "2026-10-11T12:00:00Z" },
+  ],
+};
+const TRACKING = {
+  ["a".repeat(32)]: { ...TRACKING_BASE, status: "out_for_delivery", can_enter_code: true },
+  ["b".repeat(32)]: { ...TRACKING_BASE, status: "in_transit" },
+  ["c".repeat(32)]: { ...TRACKING_BASE, status: "out_for_delivery", code_locked: true },
+};
+
 let requests = [];
 let mode = { products: "normal", delayMs: 0, fxAgeHours: 1, throttleBlocked: false };
 
@@ -445,6 +466,14 @@ const server = http.createServer(async (req, res) => {
       return list(res, CATEGORIES, false, false);
     case "rpc/throttle_hit":
       return respond(res, 200, !mode.throttleBlocked);
+    case "rpc/get_tracking": {
+      let raw = "";
+      for await (const chunk of req) raw += chunk;
+      const token = JSON.parse(raw || "{}")._token;
+      return respond(res, 200, TRACKING[token] ?? null);
+    }
+    case "rpc/confirm_delivery_with_code":
+      return respond(res, 200, { result: "wrong", attempts_left: 4 });
     case "fee_rules":
       return list(res, FEE_RULES, false, false);
     case "duty_rates":

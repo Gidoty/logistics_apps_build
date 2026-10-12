@@ -95,6 +95,21 @@ Signed-in browser tests run when these are set (existing, confirmed accounts):
 - Manual test of an expired quote on a local database: `supabase/dev/backdate-quote.sql`. To age the exchange rates for the stale-rate check: `supabase/dev/age-fx-rates.sql`.
 - The app server needs `SUPABASE_SERVICE_ROLE_KEY` at runtime (set it in Vercel as well).
 
+## Payments, fulfilment and tracking
+
+- Payments: Paystack in naira. Buyer pays from the order page; `/api/webhooks/paystack` confirms the payment; `/pay/callback` shows the result.
+- Admin: `/admin/orders` (flags, fulfilment, delivery, payout and refund), `/admin/shipments` (create shipments, add tracking events).
+- Vendor: `/vendor/orders` (mark purchased, upload inspection proof).
+- Recipient: `/t/<token>` (public tracking and the delivery code).
+
+### Try it with Paystack test mode
+
+1. Put your test keys in `.env.local`: `PAYSTACK_SECRET_KEY=sk_test_...`, and set `DELIVERY_CODE_KEY` (`openssl rand -base64 32`).
+2. Paystack must reach your webhook. Locally, run a tunnel (`cloudflared tunnel --url http://localhost:3000` or `ngrok http 3000`), then in the Paystack dashboard under Settings > API Keys & Webhooks set the test webhook URL to `https://<tunnel-host>/api/webhooks/paystack`. Also set `NEXT_PUBLIC_APP_URL` to the tunnel address so the callback and tracking links work.
+3. Pay with a Paystack test card, for example `4084 0840 8408 4081`, any future expiry, CVV `408`, PIN `0000`, OTP `123456`. See Paystack's test card list for failure cases.
+4. Without a tunnel the page still works: after paying, Paystack redirects to `/pay/callback`, but the order only becomes paid when the webhook arrives. You can replay a webhook by resending the event from the Paystack dashboard (Transactions > the payment > Resend webhook).
+5. Money is never moved by this app after payment. Releases and refunds are recorded by an admin after the bank transfer.
+
 ## Project layout
 
 ```
@@ -114,12 +129,14 @@ tests/e2e             Playwright tests
 
 ## Access rules
 
-| Route        | Who                                          |
-| ------------ | -------------------------------------------- |
-| `/account/*` | any logged-in user                           |
-| `/order/*`   | any logged-in user                           |
-| `/estimate`  | everyone                                     |
-| `/vendor/*`  | role `vendor` with an approved vendor record |
-| `/admin/*`   | role `admin`                                 |
+| Route                   | Who                                          |
+| ----------------------- | -------------------------------------------- |
+| `/account/*`            | any logged-in user                           |
+| `/order/*`              | any logged-in user                           |
+| `/estimate`             | everyone                                     |
+| `/checkout/*`, `/pay/*` | any logged-in user                           |
+| `/t/<token>`            | everyone with the link                       |
+| `/vendor/*`             | role `vendor` with an approved vendor record |
+| `/admin/*`              | role `admin`                                 |
 
 The proxy checks first; each page checks again on the server. The database enforces the same rules with RLS, so a bug in the app cannot leak data.

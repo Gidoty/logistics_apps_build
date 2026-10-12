@@ -23,6 +23,20 @@ const nextConfig: NextConfig = {
     // Allowed in development only.
     dangerouslyAllowLocalIP: process.env.NODE_ENV !== "production",
   },
+  // The tracking link is a secret in the URL: keep it out of caches, search
+  // engines and the Referer header of any link followed from the page.
+  async headers() {
+    return [
+      {
+        source: "/t/:token*",
+        headers: [
+          { key: "Cache-Control", value: "no-store" },
+          { key: "Referrer-Policy", value: "no-referrer" },
+          { key: "X-Robots-Tag", value: "noindex, nofollow" },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

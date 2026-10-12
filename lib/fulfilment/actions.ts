@@ -14,6 +14,7 @@ import {
   parseVideoDurationSeconds,
   validateProofCounts,
 } from "./proof";
+import { ensureDeliveryCode } from "@/lib/delivery/issue";
 import { refreshShipmentPages } from "./refresh";
 
 export type ActionResult = { ok: true; message: string } | { ok: false; message: string };
@@ -224,6 +225,11 @@ export async function addShipmentEvent(input: unknown): Promise<ActionResult> {
   });
   if (error) return failed(error);
   const result = data as { moved: string[]; skipped: unknown[] };
+  // Each order that is now out for delivery gets its delivery code. If this fails,
+  // the code is made the next time the buyer or an admin opens the order.
+  if (parsed.data.status === "out_for_delivery") {
+    await Promise.all(result.moved.map((id) => ensureDeliveryCode(id).catch(() => undefined)));
+  }
   refreshShipmentPages(result.moved);
   const skipped = result.skipped.length;
   return {

@@ -216,6 +216,47 @@ export type Database = {
         };
         Relationships: [];
       };
+      delivery_codes: {
+        Row: {
+          attempts: number;
+          code_ciphertext: string;
+          code_hash: string;
+          created_at: string;
+          id: string;
+          locked_at: string | null;
+          order_id: string;
+          updated_at: string;
+        };
+        Insert: {
+          attempts?: number;
+          code_ciphertext: string;
+          code_hash: string;
+          created_at?: string;
+          id?: string;
+          locked_at?: string | null;
+          order_id: string;
+          updated_at?: string;
+        };
+        Update: {
+          attempts?: number;
+          code_ciphertext?: string;
+          code_hash?: string;
+          created_at?: string;
+          id?: string;
+          locked_at?: string | null;
+          order_id?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "delivery_codes_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: true;
+            referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       delivery_zones: {
         Row: {
           created_at: string;
@@ -1978,6 +2019,13 @@ export type Database = {
         };
         Returns: Json;
       };
+      admin_mark_delivered: {
+        Args: {
+          _order_id: string;
+          _note: string;
+        };
+        Returns: undefined;
+      };
       apply_successful_payment: {
         Args: {
           _payment_id: string;
@@ -2058,6 +2106,13 @@ export type Database = {
           _id: string;
         };
         Returns: undefined;
+      };
+      confirm_delivery_with_code: {
+        Args: {
+          _token: string;
+          _hash: string;
+        };
+        Returns: Json;
       };
       corridor_matches_vendor: {
         Args: {
@@ -2180,6 +2235,12 @@ export type Database = {
         };
         Returns: boolean;
       };
+      get_tracking: {
+        Args: {
+          _token: string;
+        };
+        Returns: Json;
+      };
       inspection_folder_count: {
         Args: {
           _order_id: string;
@@ -2204,6 +2265,14 @@ export type Database = {
       };
       is_privileged_session: {
         Args: never;
+        Returns: boolean;
+      };
+      issue_delivery_code: {
+        Args: {
+          _order_id: string;
+          _hash: string;
+          _ciphertext: string;
+        };
         Returns: boolean;
       };
       log_vendor_document_view: {
@@ -2278,6 +2347,14 @@ export type Database = {
         };
         Returns: boolean;
       };
+      record_refund: {
+        Args: {
+          _order_id: string;
+          _actor: string;
+          _reference: string;
+        };
+        Returns: number;
+      };
       reject_payout_change: {
         Args: {
           _vendor_id: string;
@@ -2289,6 +2366,16 @@ export type Database = {
         Args: {
           _vendor_id: string;
           _reason: string;
+        };
+        Returns: undefined;
+      };
+      release_to_vendor: {
+        Args: {
+          _order_id: string;
+          _actor: string;
+          _amount_minor: number;
+          _fee_minor: number;
+          _reference: string;
         };
         Returns: undefined;
       };
@@ -2409,6 +2496,16 @@ export type Database = {
           _actor?: string;
         };
         Returns: Database["public"]["Enums"]["order_status"];
+      };
+      unlock_delivery_code: {
+        Args: {
+          _order_id: string;
+        };
+        Returns: undefined;
+      };
+      vendor_orders: {
+        Args: never;
+        Returns: unknown;
       };
       write_audit: {
         Args: {
