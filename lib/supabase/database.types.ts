@@ -588,6 +588,7 @@ export type Database = {
           note: string | null;
           order_id: string;
           payment_id: string | null;
+          reference: string | null;
           updated_at: string;
         };
         Insert: {
@@ -600,6 +601,7 @@ export type Database = {
           note?: string | null;
           order_id: string;
           payment_id?: string | null;
+          reference?: string | null;
           updated_at?: string;
         };
         Update: {
@@ -612,6 +614,7 @@ export type Database = {
           note?: string | null;
           order_id?: string;
           payment_id?: string | null;
+          reference?: string | null;
           updated_at?: string;
         };
         Relationships: [
@@ -851,6 +854,8 @@ export type Database = {
           public_tracking_token: string;
           quantity: number;
           recipient_id: string | null;
+          review_flagged_at: string | null;
+          review_flags: string[];
           source_host: string | null;
           source_url: string | null;
           status: Database["public"]["Enums"]["order_status"];
@@ -878,6 +883,8 @@ export type Database = {
           public_tracking_token?: string;
           quantity?: number;
           recipient_id?: string | null;
+          review_flagged_at?: string | null;
+          review_flags?: string[];
           source_host?: string | null;
           source_url?: string | null;
           status?: Database["public"]["Enums"]["order_status"];
@@ -905,6 +912,8 @@ export type Database = {
           public_tracking_token?: string;
           quantity?: number;
           recipient_id?: string | null;
+          review_flagged_at?: string | null;
+          review_flags?: string[];
           source_host?: string | null;
           source_url?: string | null;
           status?: Database["public"]["Enums"]["order_status"];
@@ -964,10 +973,15 @@ export type Database = {
           amount_minor: number;
           created_at: string;
           currency: string;
+          display_amount_minor: number | null;
+          display_currency: string | null;
+          fx_note: Json | null;
           id: string;
           order_id: string;
+          paid_at: string | null;
           provider: string;
           provider_reference: string;
+          quote_id: string | null;
           raw_payload: Json;
           status: string;
           updated_at: string;
@@ -976,10 +990,15 @@ export type Database = {
           amount_minor: number;
           created_at?: string;
           currency: string;
+          display_amount_minor?: number | null;
+          display_currency?: string | null;
+          fx_note?: Json | null;
           id?: string;
           order_id: string;
+          paid_at?: string | null;
           provider: string;
           provider_reference: string;
+          quote_id?: string | null;
           raw_payload?: Json;
           status: string;
           updated_at?: string;
@@ -988,10 +1007,15 @@ export type Database = {
           amount_minor?: number;
           created_at?: string;
           currency?: string;
+          display_amount_minor?: number | null;
+          display_currency?: string | null;
+          fx_note?: Json | null;
           id?: string;
           order_id?: string;
+          paid_at?: string | null;
           provider?: string;
           provider_reference?: string;
+          quote_id?: string | null;
           raw_payload?: Json;
           status?: string;
           updated_at?: string;
@@ -1005,10 +1029,24 @@ export type Database = {
             referencedColumns: ["code"];
           },
           {
+            foreignKeyName: "payments_display_currency_fkey";
+            columns: ["display_currency"];
+            isOneToOne: false;
+            referencedRelation: "currencies";
+            referencedColumns: ["code"];
+          },
+          {
             foreignKeyName: "payments_order_id_fkey";
             columns: ["order_id"];
             isOneToOne: false;
             referencedRelation: "orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "payments_quote_id_fkey";
+            columns: ["quote_id"];
+            isOneToOne: false;
+            referencedRelation: "quotes";
             referencedColumns: ["id"];
           },
         ];
@@ -1902,6 +1940,12 @@ export type Database = {
         };
         Returns: boolean;
       };
+      _held_balance: {
+        Args: {
+          _order_id: string;
+        };
+        Returns: number;
+      };
       _require_admin: {
         Args: never;
         Returns: undefined;
@@ -1909,6 +1953,14 @@ export type Database = {
       accept_quote: {
         Args: {
           _order_id: string;
+        };
+        Returns: string;
+      };
+      apply_successful_payment: {
+        Args: {
+          _payment_id: string;
+          _paid_at?: string;
+          _payload?: Json;
         };
         Returns: string;
       };
@@ -1925,11 +1977,24 @@ export type Database = {
         };
         Returns: undefined;
       };
+      cancel_unpaid_order: {
+        Args: {
+          _order_id: string;
+        };
+        Returns: undefined;
+      };
       category_is_assignable: {
         Args: {
           _slug: string;
         };
         Returns: boolean;
+      };
+      clear_order_flags: {
+        Args: {
+          _order_id: string;
+          _note: string;
+        };
+        Returns: undefined;
       };
       clear_product_flag: {
         Args: {
@@ -1955,6 +2020,19 @@ export type Database = {
           _vendor_id: string;
         };
         Returns: boolean;
+      };
+      create_catalog_order: {
+        Args: {
+          _buyer: string;
+          _product_id: string;
+          _quantity: number;
+          _recipient_id: string;
+          _buyer_currency: string;
+          _lines: Json;
+          _snapshot: Json;
+          _weight_grams?: number;
+        };
+        Returns: string;
       };
       create_duty_rate: {
         Args: {
@@ -1993,6 +2071,17 @@ export type Database = {
           _max_budget_minor: number;
           _recipient_id: string;
           _buyer_currency: string;
+        };
+        Returns: string;
+      };
+      create_payment: {
+        Args: {
+          _order_id: string;
+          _buyer: string;
+          _amount_minor: number;
+          _display_currency: string;
+          _display_amount_minor: number;
+          _fx_note?: Json;
         };
         Returns: string;
       };
@@ -2054,6 +2143,14 @@ export type Database = {
         };
         Returns: number;
       };
+      mark_payment_status: {
+        Args: {
+          _payment_id: string;
+          _status: string;
+          _payload?: Json;
+        };
+        Returns: undefined;
+      };
       match_store_domain: {
         Args: {
           _host: string;
@@ -2065,6 +2162,12 @@ export type Database = {
           _text: string;
         };
         Returns: string[];
+      };
+      order_ledger_summary: {
+        Args: {
+          _order_id: string;
+        };
+        Returns: unknown;
       };
       product_image_count: {
         Args: {

@@ -5,7 +5,7 @@ import { ConditionBadge } from "@/components/shop/condition-badge";
 import { ProductImage } from "@/components/shop/product-image";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { formatStock, formatTransitDays, formatWarranty } from "@/lib/catalog/format";
 import { CONDITION_LABELS } from "@/lib/catalog/schemas";
 import { getShopProduct, getShopReferences } from "@/lib/catalog/shop-queries";
@@ -155,11 +155,22 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
         ) : null}
 
         <div className="grid gap-1">
-          <Button disabled className="w-full" size="lg" aria-describedby="buy-note">
-            Coming soon
-          </Button>
+          {outOfStock || product.weight_grams === null ? (
+            <Button disabled className="w-full" size="lg" aria-describedby="buy-note">
+              {outOfStock ? "Out of stock" : "Price on request"}
+            </Button>
+          ) : (
+            <Link
+              href={`/checkout/${product.id}`}
+              className={buttonVariants({ size: "lg", className: "w-full" })}
+            >
+              Buy now
+            </Link>
+          )}
           <p id="buy-note" className="text-muted-foreground text-xs">
-            Buying opens soon. Browse now and come back to order.
+            {outOfStock
+              ? "This item is out of stock."
+              : "You see the full price, with delivery, before you pay. Payment is in naira."}
           </p>
         </div>
 

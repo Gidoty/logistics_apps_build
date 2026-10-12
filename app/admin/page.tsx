@@ -7,6 +7,11 @@ export const metadata: Metadata = { title: "Admin" };
 
 const SECTIONS = [
   {
+    href: "/admin/orders",
+    title: "Orders",
+    body: "Payments, orders that need attention, fulfilment and payouts.",
+  },
+  {
     href: "/admin/quotes",
     title: "Quote requests",
     body: "Prepare and send quotes for link orders.",

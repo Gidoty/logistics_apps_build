@@ -4,7 +4,7 @@ import type { UserRole, VendorStatus } from "./roles";
  * Route access rules, shared by the proxy (first check) and by pages
  * (authoritative check on the server).
  *   /account/*  any signed-in user
- *   /order/*    any signed-in user
+ *   /order/*, /checkout/*, /pay/*  any signed-in user
  *   /vendor/*   vendor role with an approved vendor record
  *   /admin/*    admin role
  */
@@ -23,6 +23,8 @@ const RULES: ReadonlyArray<[prefix: string, requirement: AccessRequirement]> = [
   ["/vendor", "vendor"],
   ["/account", "user"],
   ["/order", "user"],
+  ["/checkout", "user"],
+  ["/pay", "user"],
 ];
 
 function matchesPrefix(pathname: string, prefix: string): boolean {

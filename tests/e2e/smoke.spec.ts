@@ -38,6 +38,9 @@ test.describe("route protection when logged out", () => {
     "/account/orders",
     "/account/recipients",
     "/admin/quotes",
+    "/admin/orders",
+    `/checkout/d2000000-0000-4000-8000-000000000001`,
+    "/pay/callback?reference=abc",
   ]) {
     test(`${path} sends visitors to login and keeps the return path`, async ({ page }) => {
       await page.goto(path);

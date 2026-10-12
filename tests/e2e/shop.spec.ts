@@ -155,7 +155,7 @@ test.describe("empty and loading states", () => {
 });
 
 test.describe("product page", () => {
-  test("shows the price, the promise, a disabled buy button and the delivery window", async ({ page }) => {
+  test("shows the price, the promise, a Buy now link and the delivery window", async ({ page }) => {
     await page.goto(`/shop/${PRODUCT(8)}`);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(
       "Demo EcoFlow River 2 Pro Power Station 768Wh",
@@ -165,9 +165,9 @@ test.describe("product page", () => {
       page.getByText("Final delivered price, including shipping and customs, is shown before you pay."),
     ).toBeVisible();
 
-    const buy = page.getByRole("button", { name: "Coming soon" });
+    const buy = page.getByRole("link", { name: "Buy now" });
     await expect(buy).toBeVisible();
-    await expect(buy).toBeDisabled();
+    await expect(buy).toHaveAttribute("href", `/checkout/${PRODUCT(8)}`);
 
     await expect(page.getByText("Ships from")).toBeVisible();
     await expect(page.locator("dd", { hasText: "China" })).toBeVisible();
@@ -176,6 +176,12 @@ test.describe("product page", () => {
     await expect(page.getByText("needs special handling for shipping")).toBeVisible();
     await expect(page.getByRole("cell", { name: "768 Wh" })).toBeVisible();
     await expectNoHorizontalScroll(page);
+  });
+
+  test("an out-of-stock product has no Buy link", async ({ page }) => {
+    await page.goto(`/shop/${PRODUCT(12)}`);
+    await expect(page.getByRole("button", { name: "Out of stock" })).toBeDisabled();
+    await expect(page.getByRole("link", { name: "Buy now" })).toHaveCount(0);
   });
 
   test("names the vendor with a verified badge and links to their page", async ({ page }) => {

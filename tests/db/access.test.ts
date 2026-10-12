@@ -464,10 +464,17 @@ describe.skipIf(!DATABASE_URL)("database: access rules", () => {
       await h.scenario(async () => {
         const orderId = await createOrder(buyer);
         await h.asServer();
+        const paymentId = (
+          await h.query(
+            `insert into public.payments (order_id, provider, provider_reference, amount_minor, currency, status)
+             values ($1, 'paystack', 'ledger-test-ref', 15000000, 'NGN', 'success') returning id`,
+            [orderId],
+          )
+        ).rows[0].id;
         await h.query(
-          `insert into public.ledger_entries (order_id, entry_type, amount_minor, currency)
-           values ($1, 'held', 15000000, 'NGN')`,
-          [orderId],
+          `insert into public.ledger_entries (order_id, entry_type, amount_minor, currency, payment_id)
+           values ($1, 'held', 15000000, 'NGN', $2)`,
+          [orderId, paymentId],
         );
         await h.expectError("update public.ledger_entries set amount_minor = 1", [], /append-only/);
         await h.expectError("delete from public.ledger_entries", [], /append-only/);

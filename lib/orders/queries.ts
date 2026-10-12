@@ -24,7 +24,7 @@ export type MessageRow = Pick<
 >;
 
 const ORDER_COLUMNS =
-  "id, status, order_type, source_url, source_host, quantity, variant_notes, buyer_notes, max_budget_minor, buyer_currency, link_preview_json, decline_reason, decline_note, created_at, updated_at, corridor_id, store_domain_id";
+  "id, status, order_type, source_url, source_host, quantity, variant_notes, buyer_notes, max_budget_minor, buyer_currency, link_preview_json, decline_reason, decline_note, created_at, updated_at, corridor_id, store_domain_id, review_flags";
 
 // ---------------------------------------------------------------------------
 // Buyer
@@ -68,6 +68,7 @@ export type OwnOrderDetail = {
     | "decline_reason"
     | "decline_note"
     | "created_at"
+    | "review_flags"
   >;
   preview: LinkPreview | null;
   recipient: Pick<

@@ -11,6 +11,7 @@ import { allowEstimate, ESTIMATE_LIMIT } from "@/lib/pricing/estimate-throttle";
 import { createCalcRequestSchema, fieldErrorsFromIssues } from "@/lib/pricing/input";
 import { loadCalcOptions } from "@/lib/pricing/options";
 import { publicPricingMessage } from "@/lib/pricing/public-errors";
+import { parcelFor } from "@/lib/pricing/parcel";
 import { calculateFromRequest } from "@/lib/pricing/service";
 import { toCalcView, type CalcView } from "@/lib/pricing/view";
 import { getViewerCurrency } from "@/lib/pricing/viewer-currency-read";
@@ -64,7 +65,16 @@ export default async function EstimatePage({ searchParams }: PageProps<"/estimat
       failure = `You have used all ${ESTIMATE_LIMIT} estimates for this hour. Please try again later, or ask for an exact quote.`;
     } else {
       try {
-        const result = await calculateFromRequest(parsed.data);
+        const parcel = parcelFor(
+          parsed.data.actualWeightGrams,
+          parsed.data.dimensionsCm,
+          parsed.data.quantity,
+        );
+        const result = await calculateFromRequest({
+          ...parsed.data,
+          actualWeightGrams: parcel.weightGrams,
+          dimensionsCm: parcel.dimensionsCm,
+        });
         view = toCalcView(result, options.context.currencies[result.currency] ?? 2);
       } catch (error) {
         // Visitors get a plain message. The admin messages name the rules behind it.

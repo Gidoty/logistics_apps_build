@@ -50,6 +50,7 @@ export default defineConfig({
             // The pricing loader reads rule tables with the service role. The fake server accepts any key.
             SUPABASE_SERVICE_ROLE_KEY: "mock-service-role-key-0123456789",
             CRON_SECRET: "e2e-cron-secret-0123456789",
+            PAYSTACK_SECRET_KEY: "sk_test_e2e_0123456789abcdef",
           },
         },
       ]

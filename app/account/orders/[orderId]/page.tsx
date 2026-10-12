@@ -17,13 +17,15 @@ import { formatDateTime } from "@/lib/orders/format";
 import { getOwnOrder } from "@/lib/orders/queries";
 import { DECLINE_REASON_LABELS, type DeclineReason } from "@/lib/orders/schemas";
 import { buildRequestTimeline } from "@/lib/orders/timeline";
+import { getPaymentPreview, NGN_FORMAT } from "@/lib/payments/preview";
+import { PaymentCard } from "@/components/payments/payment-card";
 import { listActiveCurrencies } from "@/lib/reference/queries";
 
 export const metadata: Metadata = { title: "Order" };
 
 export default async function OrderPage({ params, searchParams }: PageProps<"/account/orders/[orderId]">) {
   const { orderId } = await params;
-  await requireUser(`/account/orders/${orderId}`);
+  const user = await requireUser(`/account/orders/${orderId}`);
   if (!isUuid(orderId)) notFound();
 
   const [detail, currencies, query] = await Promise.all([
@@ -33,6 +35,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/ac
   ]);
   if (!detail) notFound();
   const { order, preview, recipient, quote, messages } = detail;
+  const payment = order.status === "awaiting_payment" ? await getPaymentPreview(order.id, user.id) : null;
   const quoteCurrency = quote ? currencies.find((currency) => currency.code === quote.currency) : undefined;
   const budgetCurrency = currencies.find((currency) => currency.code === order.buyer_currency);
 
@@ -57,6 +60,15 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/ac
         <Alert variant="success">
           Request sent. We will email you when your quote is ready, usually within a day.
         </Alert>
+      ) : null}
+
+      {order.review_flags.includes("stock_unavailable") ? (
+        <Alert variant="destructive">
+          This item ran out of stock just before your payment was confirmed. We will refund you in full. We
+          are sorry.
+        </Alert>
+      ) : order.review_flags.length > 0 ? (
+        <Alert>Our team is taking a quick look at your order and will contact you if we need anything.</Alert>
       ) : null}
 
       <Card>
@@ -103,10 +115,13 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/ac
                 totalText={formatMoney(quote.total_minor, quoteCurrency, { withCode: true })}
               />
             ) : null}
-            {order.status === "awaiting_payment" ? (
-              <Alert variant="success">
-                You accepted this quote. Payment will open here soon, and we will email you when it is ready.
-              </Alert>
+            {order.status === "awaiting_payment" && payment && payment.kind !== "unavailable" ? (
+              <PaymentCard
+                orderId={order.id}
+                chargeText={payment.kind === "ready" ? formatMoney(payment.amountMinor, NGN_FORMAT) : ""}
+                otherCurrency={quote.currency !== "NGN"}
+                expired={payment.kind === "expired"}
+              />
             ) : null}
             {order.status === "quote_expired" ? (
               <>

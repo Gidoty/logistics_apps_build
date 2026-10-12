@@ -137,6 +137,7 @@ export function calculateLandedCost(
   const buyer = input.buyerCurrency;
   currencyOf(buyer);
   currencyOf(input.itemCurrency);
+  currencyOf(CUSTOMS_CURRENCY);
 
   // a) item subtotal, in the item's currency
   const itemSubtotal = BigInt(input.itemUnitPriceMinor) * BigInt(input.quantity);
@@ -432,6 +433,10 @@ export function calculateLandedCost(
   // k) the total is the sum of the rounded lines
   const total = converted.reduce((sum, line) => sum + BigInt(line.amountMinor), 0n);
   const totalNumber = toSafeNumber(total, "total");
+
+  // Payment is taken in naira (V1). Keep the buyer-currency-to-naira rate in the
+  // snapshot so the quote total can be converted later at exactly these rates.
+  if (buyer !== CUSTOMS_CURRENCY) rate(buyer, CUSTOMS_CURRENCY);
 
   const data: PricingData = {
     feeRules: [...used.feeRules.values()],

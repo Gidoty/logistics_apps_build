@@ -229,3 +229,19 @@ test.describe("exchange-rate cron route", () => {
     ).toBe(401);
   });
 });
+
+test.describe("Paystack webhook route", () => {
+  test("answers 401 to a request with no signature or a wrong one, and never 200", async ({ request }) => {
+    const body = JSON.stringify({ event: "charge.success", data: { reference: "x" } });
+    const none = await request.post("/api/webhooks/paystack", {
+      data: body,
+      headers: { "content-type": "application/json" },
+    });
+    expect(none.status()).toBe(401);
+    const wrong = await request.post("/api/webhooks/paystack", {
+      data: body,
+      headers: { "content-type": "application/json", "x-paystack-signature": "00".repeat(64) },
+    });
+    expect(wrong.status()).toBe(401);
+  });
+});
